@@ -1,4 +1,8 @@
+# Target autonomous communities. Province codes are INE codes (= SIGPAC province prefix).
+# bbox = [west, south, east, north] in degrees (padded ~0.1 deg around the region, mainland only)
 regions:
-  - id: andalusia
-    name: Andalusia, Spain
-    bbox: [-7.5, 36.0, -1.6, 38.8]   # lon_min, lat_min, lon_max, lat_max (placeholder)
+  - {id: andalucia, name: Andalucía, provinces: ["04", "11", "14", "18", "21", "23", "29", "41"], bbox: [-7.65, 35.9, -1.5, 38.85]}
+  - {id: castilla_la_mancha, name: Castilla-La Mancha, provinces: ["02", "13", "16", "19", "45"], bbox: [-5.5, 37.9, -0.85, 41.45]}
+  - {id: extremadura, name: Extremadura, provinces: ["06", "10"], bbox: [-7.65, 37.8, -4.55, 40.6]}
+  - {id: cataluna, name: Cataluña, provinces: ["08", "17", "25", "43"], bbox: [0.05, 40.4, 3.45, 43.0]}
+  - {id: comunitat_valenciana, name: Comunitat Valenciana, provinces: ["03", "12", "46"], bbox: [-1.65, 37.7, 0.85, 40.9]}

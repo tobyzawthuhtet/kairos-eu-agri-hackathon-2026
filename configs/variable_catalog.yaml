@@ -1,0 +1,41 @@
+# Crop-agnostic catalog: maps a trigger's driver to the data needed to evaluate it.
+# `match` = regexes tried in order against the lower-cased `variable` text of a decision-table row.
+# data_class: climate (derivable from weather data) | field_observation (scouting/sensor/lab) |
+#             external_event (warning/radar feed) | calendar | reference
+# era5: ERA5 / ERA5-Land variables to download for `climate` drivers.
+drivers:
+  - {id: reference,   data_class: reference,         match: ["lab\\b", "kc_mid", "fruit_core_temperature_lab"]}
+  - {id: field_obs,   data_class: field_observation, match: ["swp", "stem_water", "fruit_stone", "kaolin", "trap", "punctured", "stung", "leaves_with", "inflorescences", "shoots_attacked", "insects", "adults", "fruits_with", "crawlers", "incidence", "treatment_trigger", "intervention", "irrigation_applied", "final_pre_harvest", "regional_monitoring", "adult_presence", "peacock_spot_infection_obs"]}
+  - {id: hail_event,  data_class: external_event,    match: ["hail"]}
+  - {id: calendar,    data_class: calendar,          match: ["calendar", "spore_production", "orchard_floor"]}
+  - id: soil_moisture
+    data_class: climate
+    match: ["root_zone", "soil_saturation", "waterlogging"]
+    era5: {dataset: reanalysis-era5-land, variables: [volumetric_soil_water_layer_1, volumetric_soil_water_layer_2, volumetric_soil_water_layer_3], resolution: hourly}
+  - id: soil_temp
+    data_class: climate
+    match: ["soil_temp"]
+    era5: {dataset: reanalysis-era5-land, variables: [soil_temperature_level_1, soil_temperature_level_2], resolution: hourly}
+  - id: wind_gust
+    data_class: climate
+    match: ["gust", "wind"]
+    era5: {dataset: reanalysis-era5-single-levels, variables: [instantaneous_10m_wind_gust, 10m_u_component_of_wind, 10m_v_component_of_wind], resolution: hourly}
+  - id: precipitation
+    data_class: climate
+    match: ["precip", "dry_spell", "days_since_pruning"]
+    era5: {dataset: reanalysis-era5-land, variables: [total_precipitation], resolution: hourly}
+  - id: leaf_wetness_rh
+    data_class: climate
+    match: ["wetness", "rh_or", "relative_humidity", "rh_2m", "vpd"]
+    era5: {dataset: reanalysis-era5-land, variables: [2m_temperature, 2m_dewpoint_temperature, total_precipitation], resolution: hourly}
+  - id: temperature
+    data_class: climate
+    match: ["tmin", "tmax", "tmean", "tair", "air_temperature", "temperature", "chill", "gdd", "degree_days", "xylella"]
+    era5: {dataset: reanalysis-era5-land, variables: [2m_temperature], resolution: hourly}
+
+# Always downloaded for every crop (not tied to a decision-table row): needed for ET0/irrigation features.
+# `tag` => separate request/file (<tag>_<year>-<month>.nc) so it never alters the main requests.
+extras:
+  - id: potential_evap
+    tag: pev
+    era5: {dataset: reanalysis-era5-land, variables: [potential_evaporation], resolution: hourly}
