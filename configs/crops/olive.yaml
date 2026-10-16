@@ -1,0 +1,21 @@
+# Olive thresholds — PLACEHOLDERS, to be validated with agronomists (see docs/decision-rules.md)
+crop: olive
+heat:
+  tmax_stress_c: 35        # sustained above this -> stress
+  tmax_severe_c: 40        # severe: fruit drop / flower damage risk
+  consecutive_days: 3      # heat-wave definition
+drought:
+  soil_moisture_low: 0.15  # volumetric fraction; below -> irrigate
+  ndvi_drop_pct: 15        # vs. seasonal baseline
+frost:
+  tmin_damage_c: -4
+pest_disease:
+  olive_fly:               # Bactrocera oleae
+    tmax_suppress_c: 35
+    tmean_opt_min_c: 20
+    tmean_opt_max_c: 30
+    humidity_min_pct: 60
+  peacock_spot:            # Spilocaea oleagina
+    tmean_opt_min_c: 10
+    tmean_opt_max_c: 20
+    humidity_min_pct: 85

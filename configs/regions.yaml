@@ -1,0 +1,4 @@
+regions:
+  - id: andalusia
+    name: Andalusia, Spain
+    bbox: [-7.5, 36.0, -1.6, 38.8]   # lon_min, lat_min, lon_max, lat_max (placeholder)

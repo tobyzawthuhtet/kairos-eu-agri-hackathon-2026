@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+node_modules/
+web/dist/
+.DS_Store
+# data contents are not versioned (keep .gitkeep)
+data/raw/**/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep

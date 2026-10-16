@@ -1,0 +1,6 @@
+# Placeholder — pending infrastructure design
+services:
+  api:
+    build: { context: .., dockerfile: infra/Dockerfile }
+    ports: ["8000:8000"]
+    env_file: ../.env
