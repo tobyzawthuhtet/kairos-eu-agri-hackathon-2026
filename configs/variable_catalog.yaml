@@ -19,7 +19,7 @@ drivers:
   - id: wind_gust
     data_class: climate
     match: ["gust", "wind"]
-    era5: {dataset: reanalysis-era5-single-levels, variables: [instantaneous_10m_wind_gust, 10m_u_component_of_wind, 10m_v_component_of_wind], resolution: hourly}
+    era5: {dataset: reanalysis-era5-single-levels, variables: [instantaneous_10m_wind_gust], resolution: hourly}
   - id: precipitation
     data_class: climate
     match: ["precip", "dry_spell", "days_since_pruning"]
@@ -33,9 +33,7 @@ drivers:
     match: ["tmin", "tmax", "tmean", "tair", "air_temperature", "temperature", "chill", "gdd", "degree_days", "xylella"]
     era5: {dataset: reanalysis-era5-land, variables: [2m_temperature], resolution: hourly}
 
-# Always downloaded for every crop (not tied to a decision-table row): needed for ET0/irrigation features.
-# `tag` => separate request/file (<tag>_<year>-<month>.nc) so it never alters the main requests.
+# Always downloaded for every crop (not tied to a decision-table row): merged into that dataset's request.
 extras:
   - id: potential_evap
-    tag: pev
     era5: {dataset: reanalysis-era5-land, variables: [potential_evaporation], resolution: hourly}
