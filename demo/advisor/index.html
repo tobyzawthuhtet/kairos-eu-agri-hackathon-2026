@@ -115,7 +115,7 @@ function explainBlock(a) {
   const x = EXPLAIN[a.id];
   if (x === "loading") return `<div class="demo-note">Reading the rule and the evidence…</div>`;
   if (!x) return `<button class="btn ghost" style="margin-top:10px" data-explain="${esc(a.id)}">${I.spark}Explain why the system triggered this</button>`;
-  return `<div class="card" style="margin-top:10px"><span class="chip-ai">${I.spark}${x.backend === "ollama" ? "AI-drafted from the rules" : "Facts only"}</span>
+  return `<div class="card" style="margin-top:10px"><span class="chip-ai">${I.spark}${x.backend === "ollama" ? "AI-drafted from the rules" : "Plain summary"}</span>
     <div style="margin-top:8px;white-space:pre-line">${esc(x.text)}</div>
     <div class="sm muted" style="margin-top:8px">${x.facts.map(esc).join(" · ")}</div>
     <div class="sm muted" style="margin-top:6px">${x.citations.map(c => `<a href="${esc(c.source_url)}" target="_blank">${esc(c.rule_id)}</a>`).join(" · ")}${x.note ? " · " + esc(x.note) : ""}</div></div>`;

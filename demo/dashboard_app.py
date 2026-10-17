@@ -14,7 +14,6 @@ import pydeck as pdk
 import streamlit as st
 
 API = os.environ.get("KAIROS_API", "http://localhost:8000").rstrip("/") + "/demo"
-SAT = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
 RGB = {"severe": (154, 58, 42), "high": (154, 58, 42), "moderate": (224, 180, 58), "low": (217, 207, 122), "info": (169, 185, 124), "none": (127, 154, 82)}
 LABEL = {"severe": "High", "high": "High", "moderate": "Medium", "low": "Low", "info": "Info"}
 RANK = {"info": 0, "low": 1, "moderate": 2, "high": 3, "severe": 4}
@@ -23,6 +22,7 @@ BADGE = {"High": "red", "Medium": "orange", "Low": "yellow", "Info": "green"}
 st.set_page_config(page_title="Kairos Advisor Dashboard", page_icon="🫒", layout="wide")
 st.markdown("""<style>
 .block-container{padding-top:1.4rem;max-width:1700px}
+div[data-testid="stMetricValue"] div{white-space:normal;overflow:visible;text-overflow:clip;font-size:1.4rem}
 div[data-testid="stMetric"]{background:#fff;border:1px solid #e7e5d8;border-radius:16px;padding:10px 16px}
 .stApp{background:#f5f4ec}
 </style>""", unsafe_allow_html=True)
@@ -164,7 +164,7 @@ def alert_card(a: dict, key: str, request_id: str | None = None):
                     st.session_state[ek] = api_post("/assist/explain", {"alert_id": a["id"]})
             ex = st.session_state.get(ek)
             if ex:
-                st.markdown(f":violet-badge[{'AI-drafted from the rules' if ex['backend'] == 'ollama' else 'Facts only'}]")
+                st.markdown(f":violet-badge[{'AI-drafted from the rules' if ex['backend'] == 'ollama' else 'Plain summary'}]")
                 st.markdown(ex["text"])
                 st.caption(" · ".join(ex["facts"]))
                 st.caption("Sources: " + ", ".join(f"[{c['rule_id']}]({c['source_url']})" if c["source_url"] else c["rule_id"] for c in ex["citations"])
@@ -260,19 +260,18 @@ def build_map(sel_id: str | None):
         r, g, b = RGB[sev]
         dim = p["id"] not in vis_ids
         rows.append({"id": p["id"], "name": p["name"], "farmer": p["farmer"], "ha": p["ha"], "variety": p["variety"], "polygon": p["polygon"], "lon": p["centroid"][0], "lat": p["centroid"][1],
-                     "fill": [r, g, b, 40 if dim else 175], "line": [255, 255, 255, 255] if p["id"] != sel_id else [0, 0, 0, 255], "width": 2 if p["id"] != sel_id else 5,
+                     "fill": [r, g, b, 40 if dim else 175], "line": [255, 255, 255, 255] if p["id"] != sel_id else [0, 0, 0, 255], "width": 3 if p["id"] != sel_id else 12,
                      "alerts": len([a for a in p["alerts"] if a["severity"] != "info"]), "severity": LABEL.get(p["top_severity"], "none")})
     df = pd.DataFrame(rows)
-    layers = [pdk.Layer("TileLayer", data=SAT, min_zoom=0, max_zoom=19, tile_size=256),
-              pdk.Layer("PolygonLayer", df, id="plots", get_polygon="polygon", get_fill_color="fill", get_line_color="line", get_line_width="width", line_width_units="pixels",
+    layers = [pdk.Layer("PolygonLayer", df, id="plots", get_polygon="polygon", get_fill_color="fill", get_line_color="line", get_line_width="width", line_width_min_pixels=2,
                         pickable=True, auto_highlight=True, stroked=True, filled=True),
-              pdk.Layer("ScatterplotLayer", df, id="markers", get_position="[lon, lat]", get_fill_color="fill", get_line_color="line", get_radius=7, radius_units="pixels",
+              pdk.Layer("ScatterplotLayer", df, id="markers", get_position="[lon, lat]", get_fill_color="fill", get_line_color="line", get_radius=40, radius_min_pixels=5, radius_max_pixels=9,
                         stroked=True, line_width_min_pixels=2, pickable=True)]
     if reps:
         rd = pd.DataFrame([{"lon": r["centroid"][0], "lat": r["centroid"][1], "label": f"{r['label']} ({r['status']})", "col": [47, 74, 31, 255] if r["status"] == "new" else [110, 138, 74, 220]}
                            for r in reps if r["status"] != "dismissed"])
         if len(rd):
-            layers.append(pdk.Layer("ScatterplotLayer", rd, id="reports", get_position="[lon, lat]", get_fill_color="col", get_radius=11, radius_units="pixels", get_line_color=[255, 255, 255], stroked=True, line_width_min_pixels=3, pickable=True))
+            layers.append(pdk.Layer("ScatterplotLayer", rd, id="reports", get_position="[lon, lat]", get_fill_color="col", get_radius=60, radius_min_pixels=8, radius_max_pixels=14, get_line_color=[255, 255, 255], stroked=True, line_width_min_pixels=3, pickable=True))
     focus = by_id.get(sel_id)
     if focus:
         sibs = [x for x in plots if x["farmer_id"] == focus["farmer_id"]]
@@ -281,7 +280,7 @@ def build_map(sel_id: str | None):
         view = pdk.ViewState(longitude=lon, latitude=lat, zoom=13, pitch=0)
     else:
         view = pdk.data_utils.compute_view([[p["centroid"][0], p["centroid"][1]] for p in plots], 0.9)
-    return pdk.Deck(layers=layers, initial_view_state=view, map_provider=None, tooltip={"html": "<b>{name}</b><br/>{farmer} · {variety} · {ha} ha<br/>Alerts: {alerts} ({severity})"}, height=520)
+    return pdk.Deck(layers=layers, initial_view_state=view, map_provider="carto", map_style=f"{API}/basemap/satellite.json", tooltip={"html": "<b>{name}</b><br/>{farmer} · {variety} · {ha} ha<br/>Alerts: {alerts} ({severity})"}, height=520)
 
 
 # ---------------- body ----------------

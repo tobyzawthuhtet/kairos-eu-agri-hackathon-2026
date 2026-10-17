@@ -5,6 +5,7 @@ rule engine, so approving a scenario marks it validated in the farmer app, advis
 """
 import csv
 import io
+import os
 import re
 import sys
 from functools import lru_cache
@@ -204,4 +205,4 @@ def export():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5050, debug=False)
+    app.run(host="0.0.0.0", port=int(os.environ.get("KAIROS_AGRO_PORT", "5050")), debug=False)

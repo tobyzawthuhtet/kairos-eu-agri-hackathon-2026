@@ -21,4 +21,4 @@ demo-up:
 	uv run python scripts/demo_up.py
 
 demo-down:
-	-@for p in 8000 8501 5050; do lsof -ti tcp:$$p -sTCP:LISTEN | xargs -r kill 2>/dev/null; done; ollama stop $${KAIROS_LLM:-qwen2.5:3b} >/dev/null 2>&1; echo "demo stopped (model unloaded)"
+	uv run python scripts/demo_up.py --down

@@ -240,7 +240,7 @@ document.addEventListener("click", async e => {
   const q = $("qaq").value.trim(), out = $("qaout"); if (!q) return;
   out.innerHTML = `<div class="demo-note">Thinking…</div>`;
   const r = await api("/assist/ask", {alert_id: S.detail.id, question: q});
-  out.innerHTML = `<div class="card"><div class="row"><span class="chip-ai">${I.spark}${r.backend === "ollama" ? "AI-drafted from the rules" : "Standard advice"}</span></div>
+  out.innerHTML = `<div class="card"><div class="row"><span class="chip-ai">${I.spark}${r.backend === "ollama" ? "AI-drafted from the rules" : "Plain summary"}</span></div>
     <div style="margin-top:6px">${esc(r.text)}</div>
     <div class="sm muted" style="margin-top:6px">${r.citations.slice(0, 3).map(c => `<a href="${esc(c.source_url)}" target="_blank">${esc(c.rule_id)}</a>`).join(" · ")}</div>
     ${r.note ? `<div class="sm muted">${esc(r.note)}</div>` : ""}</div>`;

@@ -23,7 +23,7 @@ def test_falls_back_without_model(monkeypatch):
     monkeypatch.setattr(llm, "available", lambda: False)
     out = ask.answer("why?", {"title": "t", "summary": "s", "severity_ui": "High", "rule": {"id": "OLV-S01-FROST-01"},
                               "evidence": [], "advice": {"headline": "Do X.", "steps": ["Y."]}})
-    assert out["backend"] == "template" and "Do X." in out["text"]
+    assert out["backend"] == "template" and out["text"] == "s"  # a plain summary, not the engine's advice
 
 
 def test_rejects_ungrounded_model_answer(monkeypatch):
@@ -53,13 +53,17 @@ def test_feedback_endpoints(tmp_path, monkeypatch):
     assert kinds == ["answer", "rating"]
 
 
-def test_explain_falls_back_to_facts(monkeypatch):
+def test_explain_falls_back_to_plain_summary(monkeypatch):
     monkeypatch.setattr(llm, "available", lambda: False)
     out = ask.explain({"id": "a|1", "title": "Frost", "summary": "Low fell", "hazard": "frost", "severity_ui": "High", "source": "Decision table",
                        "rule": {"id": "OLV-S01-FROST-01", "value": -8, "operator": "<=", "threshold": -7, "unit": "C", "validated": False},
                        "evidence": [], "advice": {"headline": "h", "steps": [], "confidence": "Low confidence"}})
-    assert out["backend"] == "template" and "not yet validated" in out["text"] and out["id"]
+    assert out["backend"] == "template" and out["text"] == "Low fell" and out["id"]
 
 
 def test_verify_ignores_list_numbering():
     assert ask.verify("1. Fired at 21 %\n2. Source [OLV-S01-FROST-01]\n3. Check", "reading 21 %") == []
+
+
+def test_tidy_removes_ids_and_list_markers():
+    assert ask.tidy("1. Cold night [OLV-S01-WARN-COLD-01]\n2. Buds at risk") == "Cold night\nBuds at risk"

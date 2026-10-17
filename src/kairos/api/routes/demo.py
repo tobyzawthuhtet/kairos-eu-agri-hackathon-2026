@@ -197,3 +197,11 @@ def assist_explain(body: dict) -> dict:
     if not alert:
         raise HTTPException(404, "alert not found")
     return ask.explain(alert)
+
+
+@router.get("/basemap/satellite.json")
+def satellite_style() -> dict:
+    """MapLibre style with Esri World Imagery, so the Streamlit map can show satellite tiles (a deck.gl TileLayer cannot draw raster tiles from pydeck)."""
+    url = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    return {"version": 8, "sources": {"sat": {"type": "raster", "tiles": [url], "tileSize": 256, "maxzoom": 19, "attribution": "Esri, Maxar, Earthstar Geographics"}},
+            "layers": [{"id": "sat", "type": "raster", "source": "sat"}]}

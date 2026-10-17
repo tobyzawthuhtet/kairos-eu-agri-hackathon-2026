@@ -39,6 +39,43 @@ RAIF reports ┘                                          ▲                   
 
 The surfaces share one state, so a request from the farmer app shows up in the advisor app within seconds, and a validation returns to the farmer as "Checked by advisor". A verified field report anonymously warns growers within 10 km.
 
+### Screenshots
+
+Taken from the running demo on the 2025 replay (24 October for most screens). Names and the irrigation log are demo data; plots and weather are real.
+
+**Farmer app** — alerts, advice with the reasons behind it, "Ask Kairos" (AI explanation), parcels, report a problem
+
+<table><tr>
+<td><img src="docs/screenshots/farmer-1-alerts.png" width="190" alt="Farmer alerts"></td>
+<td><img src="docs/screenshots/farmer-2-advice.png" width="190" alt="Farmer advice"></td>
+<td><img src="docs/screenshots/farmer-3-ask-kairos.png" width="190" alt="Ask Kairos"></td>
+<td><img src="docs/screenshots/farmer-4-parcels.png" width="190" alt="Parcels"></td>
+<td><img src="docs/screenshots/farmer-5-report.png" width="190" alt="Report a problem"></td>
+</tr></table>
+
+**Advisor app** — your farmers, requests, validate / edit / hold off, "explain why the system triggered this"
+
+<table><tr>
+<td><img src="docs/screenshots/advisor-1-farmers.png" width="190" alt="Advisor: your farmers"></td>
+<td><img src="docs/screenshots/advisor-2-requests.png" width="190" alt="Advisor: requests"></td>
+<td><img src="docs/screenshots/advisor-3-review.png" width="190" alt="Advisor: review a request"></td>
+<td><img src="docs/screenshots/advisor-4-explain.png" width="190" alt="Advisor: AI explanation"></td>
+</tr></table>
+
+**Advisor dashboard (Streamlit)** — satellite map of the LPIS plots coloured by alert severity, rule-engine actions per plot, validation
+
+![Advisor dashboard: satellite map and rule-engine output](docs/screenshots/dashboard-1-map.png)
+
+Weather time series for the selected plot (temperature, rain, soil moisture, humidity, wind, degree-days):
+
+![Advisor dashboard: weather time series](docs/screenshots/dashboard-2-weather.png)
+
+**Agronomist review (Flask)** — one scenario with the live threshold test, and the crop overview
+
+![Agronomist review: scenario with interactive figures](docs/screenshots/agronomist-2-scenario.png)
+
+![Agronomist review: crop overview](docs/screenshots/agronomist-3-overview.png)
+
 ### Real vs demo data
 - **Real:** plot shapes, areas, SIGPAC references, slope, altitude and irrigation coefficient (LPIS); 2025 ERA5-Land weather per plot cell; decision-table rules and sources; RAIF observations.
 - **Demo:** grower, farm and plot names, varieties (unless you join your own olive dataset), the irrigation log and water-use alert, seeded requests and reports, and "tomorrow / forecast", which are the actual following days of 2025.
