@@ -12,6 +12,7 @@ import pandas as pd
 import yaml
 
 from kairos.config import CONFIG_DIR
+from kairos.rules import reviews
 
 SEVERITY = {"l": "low", "low": "low", "m": "moderate", "medium": "moderate", "h": "high", "high": "high",
             "critical": "severe", "info": "info"}
@@ -69,18 +70,36 @@ def _threshold(raw: str, op: str):
     return float(s)
 
 
-@lru_cache
 def load_ruleset(crop: str = "olive") -> RuleSet:
+    """Decision table + agronomist reviews. Cached per reviews-file modification time, so a new review applies at once."""
+    return _load_ruleset(crop, reviews.mtime())
+
+
+@lru_cache
+def _load_ruleset(crop: str, _reviews_mtime: float) -> RuleSet:
     table = pd.read_csv(_crop_dir(crop) / "decision_table.csv", dtype=str).fillna("")
     fmap = yaml.safe_load((_crop_dir(crop) / "feature_map.yaml").read_text())
+    rev = reviews.load()
     out = RuleSet()
     for _, r in table.iterrows():
         rid = r["scenario_id"]
+        rv = rev.get(rid)
+        if rv and rv["status"] == "modified":  # agronomist's numbers replace the literature ones
+            r = r.copy()
+            if rv.get("threshold"):
+                r["threshold"] = str(rv["threshold"])
+                r["threshold_status"] = "set"
+            if rv.get("action"):
+                r["action"] = rv["action"]
 
         def skip(reason: str, rid=rid, r=r) -> None:
             out.not_evaluable.append({"rule_id": rid, "stage": r["stage"], "hazard": r["hazard"],
                                       "data_class": r["data_class"], "variable": r["variable"], "reason": reason})
 
+        if rv and rv["status"] == "rejected":
+            out.not_evaluable.append({"rule_id": rid, "stage": r["stage"], "hazard": r["hazard"], "data_class": r["data_class"], "variable": r["variable"],
+                                      "reason": f"rejected by agronomist ({rv['reviewer']})"})
+            continue
         if r["data_class"] != "climate":
             skip({"field_observation": "needs field scouting or a sample count",
                   "external_event": "needs an external event feed (hail / warnings)",
@@ -113,7 +132,7 @@ def load_ruleset(crop: str = "olive") -> RuleSet:
             scale=float(m.get("scale", 1.0)), operator=op, threshold=thr, unit=r["unit"], when=m.get("when", []),
             action=r["action"], lead_time_h=lead,
             regions=parse_regions(r["regions"]), source_url=r["source_url"],
-            confidence=r["confidence"], validated=r["validated"].strip().lower() == "true",
+            confidence=r["confidence"], validated=bool(rv and rv["status"] in ("approved", "modified")) or r["validated"].strip().lower() == "true",
             note=m.get("note", ""), window_notes=r["window_notes"]))
     return out
 

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kairos Advisor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kairos Advisor">
+<meta name="theme-color" content="#f5f4ec">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f4a1f'/%3E%3Cpath d='M16 44c10 2 24-6 32-26-14 2-28 8-32 26z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%232f4a1f'/%3E%3Cpath d='M16 44c10 2 24-6 32-26-14 2-28 8-32 26z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/shared/kairos.css">
+</head>
+<body>
+<div class="stage"><div class="phone" id="phone">
+  <section class="view on" id="v-farmers"></section>
+  <section class="view" id="v-requests"></section>
+  <section class="view" id="v-reports"></section>
+  <section class="view" id="v-me"></section>
+  <section class="view" id="v-detail"></section>
+  <nav class="tabbar" id="tabs"></nav>
+</div></div>
+<script src="/shared/kairos.js"></script>
+<script>
+"use strict";
+const {I, ICON_FOR, sevClass, esc, api, fmtDay, toast} = K;
+const $ = id => document.getElementById(id);
+const S = {tab: "farmers", filter: "review", ov: null, reqs: [], reps: [], meta: null, detail: null, edit: false, sig: ""};
+
+async function load(force) {
+  const [meta, ov, reqs, reps] = await Promise.all([api("/meta"), api("/advisor/overview"), api("/requests"), api("/reports")]);
+  const sig = JSON.stringify([meta.clock, ov.rows.map(r => [r.needs_review, r.alert_count]), reqs.map(r => [r.id, r.status]), reps.map(r => [r.id, r.status])]);
+  Object.assign(S, {meta, ov, reqs, reps});
+  if (S.detail && S.detail.type === "req") S.detail.req = reqs.find(r => r.id === S.detail.req.id) || S.detail.req;
+  if (force || sig !== S.sig) { S.sig = sig; if (!(S.detail && S.edit)) render(); }
+}
+const hdr = () => `<div class="topbar"><div class="brand">${I.leaf}Kairos<span class="role">ADVISOR</span></div><div class="avatar">${esc(S.ov.advisor.initials)}</div></div>`;
+
+function farmerCard(r) {
+  const f = r.farmer, q = r.open_requests[0], a = r.top_alert;
+  const badge = q ? `<span class="pill dark">Review asked</span>` : a ? `<span class="pill ${sevClass(a.severity_ui)}">${a.severity_ui}</span>` : `<span class="pill soft">All clear</span>`;
+  const line = q ? `${esc(q.title.replace(/ on .*/, ""))}, ${esc((q.title.match(/ on (.*)/) || ["", ""])[1] || q.subtitle)}. ${q.photos.length} photo${q.photos.length === 1 ? "" : "s"}, asked ${esc(q.created_at)}`
+    : a ? `${esc(a.title)}${r.alert_count > 1 ? ` · ${r.alert_count} alerts` : ""}` : "No open alerts today";
+  return `<div class="card tap ${q ? "" : ""}" style="${q ? "border:1.5px solid var(--ink)" : ""}" data-farmer="${f.id}"><div class="person"><div class="avatar">${esc(f.initials)}</div>
+    <div style="flex:1;min-width:0"><div class="foot"><h3>${esc(f.name)}</h3>${badge}</div><div class="sub2">${esc(f.farm)}, ${esc(f.place)} · ${f.ha} ha</div><div style="margin-top:6px;font-size:15px">${line}</div></div></div></div>`;
+}
+function reportCard(c) {
+  const others = c.growers.length - 1;
+  return `<div class="card warn"><div class="person"><div class="ico med" style="background:#f2e2a0">${I.pin}</div><div style="flex:1"><div class="foot"><span class="hl">Field report · ${esc(c.kind)}</span><span class="xs muted">${c.reports.length} report${c.reports.length === 1 ? "" : "s"}</span></div>
+    <h3 style="margin:4px 0">${esc(c.label)} near ${esc(c.municipality)}</h3><div class="sub2">From ${esc(c.growers[0])}${others > 0 ? ` and ${others} other grower${others > 1 ? "s" : ""}` : ""}. ${c.farms_within_10km} farm${c.farms_within_10km === 1 ? "" : "s"} within 10 km.</div></div></div>
+    <div class="foot" style="margin-top:14px;gap:10px"><button class="btn sm" style="flex:1" data-verify="${c.reports[0].id}">Verify and warn area</button><button class="btn ghost sm" data-tab="reports">Review</button></div></div>`;
+}
+function renderFarmers() {
+  const o = S.ov, rows = o.rows.filter(r => S.filter === "all" || (S.filter === "water" ? r.water : r.needs_review));
+  const order = rows.slice().sort((a, b) => (b.open_requests.length - a.open_requests.length) || (b.high_count - a.high_count) || (b.alert_count - a.alert_count));
+  const clusters = S.filter === "all" || S.filter === "review" ? o.report_clusters : [];
+  const items = []; let placed = false;
+  order.forEach((r, i) => { items.push(farmerCard(r)); if (!placed && (i === 0 || r.open_requests.length === 0) && clusters.length) { items.push(...clusters.map(reportCard)); placed = true; } });
+  if (!placed) items.push(...clusters.map(reportCard));
+  $("v-farmers").innerHTML = `${hdr()}<h1>Your farmers</h1><div class="sub2">${o.farmer_count} olive growers · ${esc(o.advisor.area)} · ${fmtDay(o.date)}</div>
+    <div class="tiles"><div class="tile dark"><b>${o.to_review}</b><span>To review</span></div><div class="tile"><b class="red">${o.water_alerts}</b><span>Water alerts</span></div><div class="tile warn"><b>${o.new_reports}</b><span>New reports</span></div></div>
+    <div class="chips" style="margin-top:0">${[["review", "Needs review"], ["water", "Water alerts"], ["all", "All"]].map(([k, l]) => `<button class="fchip ${S.filter === k ? "on" : ""}" data-filter="${k}">${l}</button>`).join("")}</div>
+    ${items.join("") || `<div class="card empty">Nothing waiting on you.</div>`}`;
+}
+
+function photosRow(photos) {
+  return photos.length ? `<div class="photos">${photos.map(p => `<div class="photo">${p.thumb ? `<img src="${p.thumb}" alt="">` : ""}<i>${esc(p.label)}</i></div>`).join("")}</div>` : "";
+}
+function renderRequests() {
+  const open = S.reqs.filter(r => r.status === "asked"), done = S.reqs.filter(r => r.status !== "asked");
+  const card = r => { const f = S.ov.rows.find(x => x.farmer.id === r.farmer_id).farmer;
+    return `<div class="card tap" data-req="${r.id}"><div class="person"><div class="avatar">${esc(f.initials)}</div><div style="flex:1"><div class="foot"><h3>${esc(f.name)}</h3><span class="pill ${r.status === "asked" ? "dark" : "soft"}">${r.status === "asked" ? "Review asked" : "Answered"}</span></div>
+    <div class="sub2">${esc(r.title)}</div><div class="sm muted" style="margin-top:4px">${esc(r.message)}</div><div class="xs muted" style="margin-top:6px">${esc(r.urgency)} · ${r.photos.length} photos · ${esc(r.created_at)}</div></div></div></div>`; };
+  $("v-requests").innerHTML = `${hdr()}<h1>Requests</h1><div class="sub2">Growers asking you to check advice</div>
+    ${open.map(card).join("") || `<div class="card empty">No open requests.</div>`}${done.length ? `<h2 style="margin-top:20px">Answered</h2>${done.map(card).join("")}` : ""}`;
+}
+function renderReports() {
+  const fn = id => S.ov.rows.find(x => x.farmer.id === id).farmer.name;
+  const row = r => `<div class="card"><div class="foot"><b>${esc(r.label)} · ${esc(r.municipality)}</b><span class="pill ${r.status === "new" ? "med" : r.status === "verified" ? "dark" : "soft"}">${r.status === "new" ? "New" : r.status === "verified" ? "Verified" : "Dismissed"}</span></div>
+    <div class="sm muted" style="margin:4px 0 8px">${esc(fn(r.farmer_id))} · ${esc(r.created_at)} · ${r.visibility === "nearby" ? "may warn nearby growers" : "advisor only"}</div><div>${esc(r.notes)}</div>${photosRow(r.photos)}
+    ${r.status === "new" ? `<div class="foot" style="margin-top:12px;gap:10px"><button class="btn sm" style="flex:1" data-verify="${r.id}">Verify${r.visibility === "nearby" ? " and warn area" : ""}</button><button class="btn ghost sm" data-dismiss="${r.id}">Dismiss</button></div>` : r.status === "verified" && r.warned_farmers ? `<div class="xs muted" style="margin-top:8px">${r.warned_farmers.length} grower${r.warned_farmers.length === 1 ? "" : "s"} within ${r.radius_km} km warned, without the reporter's name.</div>` : ""}</div>`;
+  $("v-reports").innerHTML = `${hdr()}<h1>Field reports</h1><div class="sub2">Pest, disease and damage reported by growers</div>${S.reps.map(row).join("") || `<div class="card empty">No reports yet.</div>`}`;
+}
+function renderMe() {
+  const a = S.ov.advisor;
+  $("v-me").innerHTML = `${hdr()}<div class="card"><div class="who"><div class="avatar lg">${esc(a.initials)}</div><div><h2 style="margin:0">${esc(a.name)}</h2><div class="sub2">${esc(a.title)} · ${esc(a.area)}</div><div class="sm muted">${S.ov.farmer_count} growers</div></div></div></div>
+    <h2 style="margin-top:20px">Demo controls</h2><div class="card"><div class="label" style="margin-top:0">Replay date <span>${S.meta.date_min} to ${S.meta.date_max}</span></div>
+    <input type="date" id="clock" value="${S.meta.clock}" min="${S.meta.date_min}" max="${S.meta.date_max}" style="width:100%;font:inherit;border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff">
+    <div class="xs muted" style="margin-top:6px">Moves the farmer app and dashboard too.</div><button class="btn ghost" style="margin-top:14px" data-reset>Reset demo data</button></div>
+    <div class="demo-note">Advice here comes from the Kairos rule engine (decision table). Every threshold is pending agronomist validation, which is what the Validate button records.</div>`;
+}
+
+// ---- detail screens ----
+async function openReq(id) {
+  const r = S.reqs.find(x => x.id === id), alert = r.alert_id ? await api("/alerts/" + encodeURIComponent(r.alert_id)).catch(() => null) : null;
+  S.detail = {type: "req", req: r, alert}; S.edit = false; render(); $("v-detail").scrollTo(0, 0);
+}
+async function openFarmer(fid) {
+  const [farmer, feed] = await Promise.all([api(`/farmers/${fid}`), api(`/farmers/${fid}/alerts`)]);
+  S.detail = {type: "farmer", farmer, feed}; S.edit = false; render(); $("v-detail").scrollTo(0, 0);
+}
+function adviceBlock(a, ed) {
+  const r = a.review, steps = r && r.steps && r.steps.length ? r.steps : a.advice.steps, head = r && r.headline ? r.headline : a.advice.headline;
+  if (ed) return `<div class="advice"><div class="row"><span class="chip-ai">${I.spark}Editing advice</span></div><div class="label">Headline</div><input type="text" id="edhead" value="${esc(head)}">
+    <div class="label">Steps <span>one per line</span></div><textarea id="edsteps" style="min-height:150px">${esc(steps.join("\n"))}</textarea></div>`;
+  return `<div class="advice"><div class="row"><span class="chip-ai">${I.spark}Kairos advice</span><span class="conf">${esc(a.advice.confidence)}</span></div><div class="headline">${esc(head)}</div>${steps.map((s, i) => `<div class="step"><b>${i + 1}</b><span>${esc(s)}</span></div>`).join("")}</div>`;
+}
+const evidence = a => `<div class="why">${a.evidence.map(e => `<div class="r"><span class="tag ${e.tag === "General" ? "gen" : "you"}">${esc(e.tag)}</span><span>${esc(e.text)}</span></div>`).join("")}</div>
+  <div class="demo-note">Rule ${esc(a.rule ? a.rule.id : "n/a")} · ${esc(a.source)}${a.rule && !a.rule.validated ? " · not yet validated by an agronomist" : ""}</div>`;
+function reviewBadge(a) { const r = a.review; return r ? `<span class="pill ${r.status === "rejected" ? "high" : "dark"}">${r.status === "validated" ? "Validated" : r.status === "edited" ? "Edited" : "Held off"}</span>` : `<span class="pill med">Not reviewed</span>`; }
+
+const EXPLAIN = {};
+function explainBlock(a) {
+  const x = EXPLAIN[a.id];
+  if (x === "loading") return `<div class="demo-note">Reading the rule and the evidence…</div>`;
+  if (!x) return `<button class="btn ghost" style="margin-top:10px" data-explain="${esc(a.id)}">${I.spark}Explain why the system triggered this</button>`;
+  return `<div class="card" style="margin-top:10px"><span class="chip-ai">${I.spark}${x.backend === "ollama" ? "AI-drafted from the rules" : "Facts only"}</span>
+    <div style="margin-top:8px;white-space:pre-line">${esc(x.text)}</div>
+    <div class="sm muted" style="margin-top:8px">${x.facts.map(esc).join(" · ")}</div>
+    <div class="sm muted" style="margin-top:6px">${x.citations.map(c => `<a href="${esc(c.source_url)}" target="_blank">${esc(c.rule_id)}</a>`).join(" · ")}${x.note ? " · " + esc(x.note) : ""}</div></div>`;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-explain]"); if (!b) return;
+  const id = b.dataset.explain; EXPLAIN[id] = "loading"; renderDetail();
+  EXPLAIN[id] = await api("/assist/explain", {alert_id: id}); renderDetail();
+});
+function renderDetail() {
+  const d = S.detail; if (!d) return;
+  if (d.type === "req") {
+    const r = d.req, a = d.alert, f = S.ov.rows.find(x => x.farmer.id === r.farmer_id).farmer, open = r.status === "asked";
+    $("v-detail").innerHTML = `<div class="nav-top"><button data-back>${I.back}</button>Review request</div>
+      <div class="person"><div class="avatar">${esc(f.initials)}</div><div><h3>${esc(f.name)}</h3><div class="sub2">${esc(f.farm)}, ${esc(f.place)}</div></div><span class="spacer"></span><span class="pill ${r.urgency === "Today" ? "high" : "soft"}">${esc(r.urgency)}</span></div>
+      <div class="card" style="margin-top:16px"><div class="hl" style="color:var(--sub)">Their question · ${esc(r.created_at)}</div><div style="margin-top:6px;font-size:16.5px">${esc(r.message)}</div>${photosRow(r.photos)}
+        <div class="xs muted" style="margin-top:10px">${r.share_data ? "Field data shared: plot, irrigation log, weather behind the advice." : "Field data not shared."}</div></div>
+      ${a ? `<div class="title" style="margin-top:18px">${esc(a.title)}</div><div class="sub2">${esc(a.subtitle)} ${reviewBadge(a)}</div>${adviceBlock(a, S.edit)}<h2 style="margin-top:20px">Why Kairos says this</h2>${evidence(a)}${explainBlock(a)}` : ""}
+      ${r.replies.map(x => `<div class="bubble me" style="background:#fff;color:var(--ink);border:1px solid var(--line)"><b>You</b> · ${esc(x.decision || "reply")}<br>${esc(x.text)}<small>${esc(x.at)}</small></div>`).join("")}
+      ${open ? `<div class="label">Note for ${esc(f.name.split(" ")[0])} <span>optional</span></div><textarea id="note" placeholder="e.g. Irrigate 8 hours instead of 6 because the leaves are curled."></textarea>
+        <div class="actions" style="position:static;background:none;padding:14px 0 30px">${S.edit ? `<button class="btn" data-decide="edited">${I.check}Save edit and send</button><button class="btn ghost" data-canceledit>Cancel edit</button>`
+        : `<button class="btn" data-decide="validated">${I.check}Validate advice</button><button class="btn ghost" data-editadv>Edit advice</button><button class="btn danger" data-decide="rejected">Tell them to hold off</button>`}</div>` : `<div class="demo-note">Answered. The grower sees your decision in the Kairos app.</div>`}`;
+  } else {
+    const f = d.farmer, items = d.feed.filter(a => a.when !== "Yesterday" || a.severity !== "info");
+    $("v-detail").innerHTML = `<div class="nav-top"><button data-back>${I.back}</button>${esc(f.name)}</div>
+      <div class="card"><div class="person"><div class="avatar">${esc(f.initials)}</div><div><h3>${esc(f.farm)}</h3><div class="sub2">${esc(f.place)} · ${f.ha} ha · ${f.parcel_count} parcels</div></div></div>
+      <div class="rule"></div>${f.parcels.map(p => `<div class="sm" style="margin:4px 0"><b>${esc(p.name)}</b> · ${esc(p.variety)} · ${p.ha} ha · ${esc(p.irrigation)}</div>`).join("")}</div>
+      <h2 style="margin-top:18px">Alerts for ${fmtDay(S.meta.clock)}</h2>
+      ${items.map(a => `<div class="card"><div class="alert-top"><div class="ico ${sevClass(a.severity_ui)}">${I[a.severity === "info" ? "drop" : (ICON_FOR[a.hazard] || ICON_FOR[a.kind])]}</div><span class="pill ${sevClass(a.severity_ui)}">${a.severity_ui}</span><span class="spacer"></span>${reviewBadge(a)}</div>
+        <div class="title">${esc(a.title)}</div><div class="sub2">${esc(a.subtitle)}</div><p class="body">${esc(a.advice.headline)}</p>
+        ${a.community ? "" : `<div class="foot" style="margin-top:12px;gap:8px"><button class="btn sm" style="flex:1" data-quick="validated" data-aid="${esc(a.id)}">Validate</button><button class="btn danger sm" data-quick="rejected" data-aid="${esc(a.id)}">Hold off</button></div>`}</div>`).join("") || `<div class="card empty">No alerts today.</div>`}`;
+  }
+}
+
+function renderTabs() {
+  const nreq = S.reqs.filter(r => r.status === "asked").length, nrep = S.reps.filter(r => r.status === "new").length;
+  const T = [["farmers", "Farmers", "users", 0], ["requests", "Requests", "chat", nreq], ["reports", "Reports", "pin", nrep], ["me", "Me", "user", 0]];
+  $("tabs").innerHTML = T.map(([k, l, ic, n]) => `<button data-tab="${k}" class="${S.tab === k && !S.detail ? "on" : ""}">${I[ic]}${l}${n ? `<span class="badge">${n}</span>` : ""}</button>`).join("");
+}
+function render() {
+  if (!S.ov) return;
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
+  const v = S.detail ? "detail" : S.tab; $("v-" + v).classList.add("on");
+  ({farmers: renderFarmers, requests: renderRequests, reports: renderReports, me: renderMe, detail: renderDetail})[v]();
+  $("tabs").style.display = v === "detail" ? "none" : "flex"; renderTabs();
+}
+
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-tab],[data-filter],[data-farmer],[data-req],[data-back],[data-verify],[data-dismiss],[data-decide],[data-editadv],[data-canceledit],[data-quick],[data-reset]");
+  if (!t) return; const d = t.dataset;
+  if ("tab" in d) { S.tab = d.tab; S.detail = null; render(); }
+  else if ("filter" in d) { S.filter = d.filter; render(); }
+  else if ("farmer" in d) openFarmer(d.farmer);
+  else if ("req" in d) openReq(d.req);
+  else if ("back" in d) { S.detail = null; S.edit = false; await load(true); }
+  else if ("verify" in d) { await api(`/reports/${d.verify}/verify`, {action: "verify"}); toast("Verified. Nearby growers were warned, without the reporter's name."); await load(true); }
+  else if ("dismiss" in d) { await api(`/reports/${d.dismiss}/verify`, {action: "dismiss"}); toast("Report dismissed."); await load(true); }
+  else if ("editadv" in d) { S.edit = true; render(); }
+  else if ("canceledit" in d) { S.edit = false; render(); }
+  else if ("decide" in d) {
+    const body = {decision: d.decide, text: ($("note") || {}).value || ""};
+    if (d.decide === "edited") { body.headline = $("edhead").value.trim(); body.steps = $("edsteps").value.split("\n").map(s => s.trim()).filter(Boolean); }
+    await api(`/requests/${S.detail.req.id}/respond`, body); toast({validated: "Validated and sent to the grower.", edited: "Edited advice sent to the grower.", rejected: "Sent: hold off."}[d.decide]);
+    S.detail = null; S.edit = false; S.tab = "requests"; await load(true);
+  }
+  else if ("quick" in d) { await api(`/review/${encodeURIComponent(d.aid)}`, {status: d.quick}); toast(d.quick === "validated" ? "Validated." : "Marked hold off."); await openFarmer(S.detail.farmer.id); }
+  else if ("reset" in d) { await api("/reset", {}); toast("Demo data reset."); S.detail = null; await load(true); }
+});
+document.addEventListener("change", async e => { if (e.target.id === "clock" && e.target.value) { await api("/clock", {date: e.target.value}); toast("Replay date changed."); await load(true); } });
+load(true).then(async () => {
+  const q = new URLSearchParams(location.search);
+  if (q.get("tab")) { S.tab = q.get("tab"); render(); }
+  if (q.get("req")) await openReq(S.reqs[+q.get("req") - 1].id);
+  if (q.get("farmer")) await openFarmer(q.get("farmer"));
+}).catch(err => { document.body.innerHTML = `<p style="padding:30px;font-family:sans-serif">Cannot reach the Kairos API (${err.message}).<br>Start it with <code>make demo-up</code> and open this page from that server.</p>`; });
+setInterval(() => load(false).catch(() => {}), 4000);
+</script>
+</body>
+</html>

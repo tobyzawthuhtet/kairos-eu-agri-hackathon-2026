@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kairos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kairos">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f5f4ec">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f4a1f'/%3E%3Cpath d='M16 44c10 2 24-6 32-26-14 2-28 8-32 26z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%232f4a1f'/%3E%3Cpath d='M16 44c10 2 24-6 32-26-14 2-28 8-32 26z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/shared/kairos.css">
+</head>
+<body>
+<div class="stage"><div class="phone" id="phone">
+  <section class="view on" id="v-alerts"></section>
+  <section class="view" id="v-parcels"></section>
+  <section class="view" id="v-advisor"></section>
+  <section class="view" id="v-me"></section>
+  <section class="view" id="v-detail"></section>
+  <div class="composer" id="composer" style="display:none"><input type="text" id="chatin" placeholder="Message Elena"><button id="chatsend"></button></div>
+  <nav class="tabbar" id="tabs"></nav>
+  <div class="sheet-bg" id="sbg"></div>
+  <div class="sheet" id="sheet"></div>
+</div></div>
+<script src="/shared/kairos.js"></script>
+<script>
+"use strict";
+const {I, ICON_FOR, sevClass, esc, api, fmtDay, toast} = K;
+const S = {fid: new URLSearchParams(location.search).get("f") || localStorage.getItem("kairos_f") || "F01", tab: "alerts", filter: "all", detail: null,
+  farmer: null, meta: null, feed: [], reqs: [], chat: [], reports: [], parcels: [], sheet: null, ask: null, rep: null, sig: ""};
+const REPORT_LABELS = {Pest: ["Olive fruit fly", "Olive moth (Prays)", "Black scale", "Other pest"], Disease: ["Peacock spot", "Anthracnose", "Verticillium wilt", "Other disease"]};
+const $ = id => document.getElementById(id);
+
+async function load(force) {
+  const [meta, farmer, feed, reqs, chat, reports, parcels] = await Promise.all([api("/meta"), api(`/farmers/${S.fid}`), api(`/farmers/${S.fid}/alerts`),
+    api(`/requests?farmer_id=${S.fid}`), api(`/chat/${S.fid}`), api(`/reports?farmer_id=${S.fid}`), api(`/farmers/${S.fid}/parcels`)]);
+  const sig = JSON.stringify([meta.clock, feed.map(a => [a.id, a.review, a.done, a.asked]), reqs.map(r => [r.id, r.status, r.replies.length]), chat.length, reports.map(r => r.status)]);
+  Object.assign(S, {meta, farmer, feed, reqs, chat, reports, parcels});
+  if (S.detail) { const d = feed.find(a => a.id === S.detail.id); if (d) S.detail = d; }
+  if (force || sig !== S.sig) { S.sig = sig; if (!S.sheet) render(); }
+}
+const first = () => S.farmer.name.split(" ")[0];
+const greet = () => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 19 ? "Good afternoon" : "Good evening"; };
+const iconFor = a => a.severity === "info" ? "drop" : (ICON_FOR[a.hazard] || ICON_FOR[a.kind]);
+const sevIco = a => sevClass(a.severity_ui);
+
+function status(a) {
+  if (a.review && a.review.status === "rejected") return `<span class="pill high">Advisor: hold off</span>`;
+  if (a.review) return `<span class="pill dark">Checked by advisor</span>`;
+  if (a.done) return `<span class="pill soft">Done</span>`;
+  if (a.asked) return `<span class="pill line">Elena is checking</span>`;
+  return a.severity === "info" ? "" : `<span class="pill soft">Advice ready</span>`;
+}
+function alertCard(a) {
+  return `<div class="card tap" data-open="${esc(a.id)}">
+    <div class="alert-top"><div class="ico ${sevIco(a)}">${I[iconFor(a)]}</div><span class="pill ${sevIco(a)}">${a.severity_ui}</span><span class="spacer"></span><span class="muted">${esc(a.when)}</span></div>
+    <div class="title">${esc(a.title)}</div><div class="sub2">${esc(a.subtitle)}</div>${a.severity === "info" ? "" : `<p class="body">${esc(a.summary)}</p>`}
+    <div class="rule"></div><div class="foot">${status(a) || "<span></span>"}${a.severity === "info" && !a.review ? "" : `<button class="link">View advice ${I.chev}</button>`}</div></div>`;
+}
+function renderAlerts() {
+  const items = S.feed.filter(a => S.filter === "all" || a.kind === S.filter);
+  const fresh = S.feed.filter(a => a.when !== "Yesterday" && !a.done).length;
+  $("v-alerts").innerHTML = `<div class="topbar"><div class="brand">${I.leaf}Kairos</div><div class="avatar">${esc(S.farmer.initials)}</div></div>
+    <div class="kicker">${fmtDay(S.meta.clock)}</div><h1>${greet()}, ${esc(first())}</h1>
+    <div class="sub2">${esc(S.farmer.farm)}, ${esc(S.farmer.place)} · ${S.farmer.parcel_count} parcels · ${fresh} new alert${fresh === 1 ? "" : "s"}</div>
+    <div class="chips">${[["all", "All"], ["weather", "Weather"], ["irrigation", "Irrigation"]].map(([k, l]) => `<button class="fchip ${S.filter === k ? "on" : ""}" data-f="${k}">${l}</button>`).join("")}</div>
+    ${items.map(alertCard).join("") || `<div class="card empty">Nothing needs your attention in this category.</div>`}
+    <div class="demo-note">Replay of real 2025 weather (ERA5-Land) on real LPIS plots. Names and the irrigation log are demo data.</div>`;
+}
+
+function reviewBlock(a) {
+  const r = a.review; if (!r) return "";
+  const who = r.by || "Your advisor";
+  if (r.status === "rejected") return `<div class="card warn"><b>${esc(who)} says: hold off</b><div class="sm" style="margin-top:4px">${esc(r.note || "Please do not follow this advice yet.")}</div></div>`;
+  return `<div class="card" style="background:var(--soft);border-color:#d6dcc0"><b>${r.status === "edited" ? `${esc(who)} adjusted this advice` : `Checked by ${esc(who)}`}</b><div class="sm" style="margin-top:4px">${esc(r.note || "Looks right.")}</div></div>`;
+}
+function renderDetail() {
+  const a = S.detail; if (!a) return;
+  const r = a.review, steps = r && r.steps && r.steps.length ? r.steps : a.advice.steps, headline = r && r.headline ? r.headline : a.advice.headline;
+  const open = S.reqs.find(q => q.alert_id === a.id);
+  const btn = !open ? `<button class="btn" data-ask>${I.chat}Ask Elena to check this</button>` :
+    open.status === "asked" ? `<button class="btn" disabled>${I.chat}Elena is checking this</button>` : `<button class="btn" data-goto="advisor">${I.chat}See Elena's reply</button>`;
+  $("v-detail").innerHTML = `<div class="nav-top"><button data-back>${I.back}</button>Alert details</div>
+    <div class="alert-top"><span class="pill ${sevIco(a)}">${a.severity_ui}</span><span class="muted">${a.when === "Yesterday" ? "Yesterday" : "Today"}, ${esc(a.time)}</span></div>
+    <h1 style="font-size:28px;margin-top:12px">${esc(a.title)}</h1><div class="sub2">${esc(a.subtitle)}</div>
+    ${reviewBlock(a)}
+    <div class="advice"><div class="row"><span class="chip-ai">${I.spark}Kairos advice</span><span class="conf">${esc(a.advice.confidence)}</span></div>
+      <div class="headline">${esc(headline)}</div>${steps.map((s, i) => `<div class="step"><b>${i + 1}</b><span>${esc(s)}</span></div>`).join("")}</div>
+    <h2 style="margin-top:20px">Why Kairos says this</h2>
+    <div class="why">${a.evidence.map(e => `<div class="r"><span class="tag ${e.tag === "General" ? "gen" : "you"}">${esc(e.tag)}</span><span>${esc(e.text)}</span></div>`).join("")}</div>
+    <div class="demo-note">${esc(a.source)}${a.rule && !a.rule.validated ? " · Threshold not yet validated by an agronomist." : ""}</div>
+    <h2 style="margin-top:20px">Ask Kairos about this alert</h2>
+    <div class="qa"><input type="text" id="qaq" placeholder="e.g. Why is this a problem now?"><button class="btn" id="qago">Ask</button></div>
+    <div id="qaout"></div>
+    <div class="actions">${btn}<button class="btn ghost" data-done ${a.done ? "disabled" : ""}>${a.done ? "Marked as done" : "Mark as done"}</button></div>`;
+}
+
+function mapSvg(parcels) {
+  const pts = parcels.flatMap(p => p.polygon), lat0 = pts.reduce((s, p) => s + p[1], 0) / pts.length, kx = Math.cos(lat0 * Math.PI / 180);
+  const xs = pts.map(p => p[0] * kx), ys = pts.map(p => -p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const W = 350, H = 230, pad = 18, sc = Math.min((W - 2 * pad) / (x1 - x0 || 1), (H - 2 * pad) / (y1 - y0 || 1));
+  const px = p => [pad + (p[0] * kx - x0) * sc + ((W - 2 * pad) - (x1 - x0) * sc) / 2, pad + (-p[1] - y0) * sc + ((H - 2 * pad) - (y1 - y0) * sc) / 2];
+  const col = {severe: "#9a3a2a", high: "#9a3a2a", moderate: "#e0b43a", low: "#d9cf7a", info: "#a9b97c", null: "#7f9a52"};
+  return `<svg viewBox="0 0 ${W} ${H}">${parcels.map(p => {
+    const d = "M" + p.polygon.map(q => px(q).map(v => v.toFixed(1)).join(",")).join("L") + "Z", c = px(p.centroid);
+    return `<circle cx="${c[0]}" cy="${c[1]}" r="13" fill="${col[p.top_severity]}" fill-opacity=".28" stroke="${col[p.top_severity]}" stroke-width="1.5"/><path d="${d}" fill="${col[p.top_severity]}" fill-opacity=".85" stroke="#2f4a1f" stroke-width="1.5"/><text x="${c[0]}" y="${c[1]}" font-size="11" font-weight="700" fill="#1d2517" text-anchor="middle" paint-order="stroke" stroke="#fff" stroke-width="3">${esc(p.name)}</text>`;
+  }).join("")}</svg>`;
+}
+function renderParcels() {
+  $("v-parcels").innerHTML = `<div class="topbar"><div class="brand">${I.leaf}Kairos</div><div class="avatar">${esc(S.farmer.initials)}</div></div>
+    <h1>Parcels</h1><div class="sub2">${esc(S.farmer.farm)} · ${S.farmer.ha} ha from the land registry (LPIS)</div>
+    <div class="mapbox" style="margin-top:14px">${mapSvg(S.parcels)}</div>
+    <div class="xs muted" style="margin:6px 4px">Red = high alert today · yellow = medium · green = no alert</div>
+    ${S.parcels.map(p => `<div class="card"><div class="alert-top"><div class="ico info">${I.leaf}</div><div><div class="title" style="margin:0">${esc(p.name)}</div><div class="sub2">${esc(p.variety)} · ${p.ha} ha · ${esc(p.irrigation)}</div></div></div>
+      <div class="rule"></div><div class="sm muted">SIGPAC ${esc(p.sigpac_ref)}${p.altitude_m ? ` · ${p.altitude_m} m` : ""}${p.slope_pct != null ? ` · slope ${p.slope_pct}%` : ""}</div>
+      <div class="foot" style="margin-top:8px"><span class="pill ${p.alerts ? "med" : "soft"}">${p.alerts ? p.alerts + " alert" + (p.alerts > 1 ? "s" : "") + " today" : "No alerts today"}</span></div></div>`).join("")}`;
+}
+
+function renderAdvisor() {
+  const adv = S.meta.advisor, msgs = [];
+  S.reqs.forEach(r => msgs.push({ts: r.ts || 0, html: `<div class="bubble me"><b>${esc(r.title)}</b><br>${esc(r.message)}<br><span class="xs">${r.photos.length} photo${r.photos.length === 1 ? "" : "s"} · ${esc(r.urgency)}</span><small>${esc(r.created_at)}</small></div>`}));
+  S.chat.forEach(m => msgs.push({ts: m.ts || 0, html: `<div class="bubble ${m.from === "farmer" ? "me" : "them"}">${esc(m.text)}<small>${esc(m.at)}</small></div>`}));
+  msgs.sort((a, b) => a.ts - b.ts);
+  $("v-advisor").innerHTML = `<div class="topbar"><div class="brand">${I.leaf}Kairos</div><div class="avatar">${esc(S.farmer.initials)}</div></div>
+    <div class="card"><div class="who"><div class="avatar lg">${esc(adv.initials)}</div><div><h2 style="margin:0">${esc(adv.name)}</h2><div class="sub2">${esc(adv.title)} · usually replies within ${adv.reply_hours} hours</div></div></div></div>
+    ${msgs.map(m => m.html).join("") || `<div class="empty">No messages yet. Open an alert and tap "Ask Elena to check this".</div>`}`;
+}
+function renderMe() {
+  const ro = [["", "Select grower"]];
+  api("/farmers").then(fs => { const sel = $("grower"); if (sel && !sel.dataset.f) { sel.dataset.f = 1; sel.innerHTML = fs.map(f => `<option value="${f.id}" ${f.id === S.fid ? "selected" : ""}>${esc(f.name)} · ${esc(f.farm)}</option>`).join(""); } });
+  $("v-me").innerHTML = `<div class="topbar"><div class="brand">${I.leaf}Kairos</div><div class="avatar">${esc(S.farmer.initials)}</div></div>
+    <div class="card"><div class="who"><div class="avatar lg">${esc(S.farmer.initials)}</div><div><h2 style="margin:0">${esc(S.farmer.name)}</h2><div class="sub2">${esc(S.farmer.farm)}, ${esc(S.farmer.place)}</div><div class="sm muted">${S.farmer.ha} ha · ${S.farmer.parcel_count} parcels</div></div></div></div>
+    <h2 style="margin-top:20px">Your reports</h2>
+    ${S.reports.map(r => `<div class="card"><div class="foot"><b>${esc(r.label)}</b><span class="pill ${r.status === "verified" ? "dark" : r.status === "dismissed" ? "soft" : "med"}">${r.status === "new" ? "Waiting for Elena" : r.status === "verified" ? "Verified" : "Closed"}</span></div>
+      <div class="sm muted" style="margin-top:4px">${esc(r.notes)}</div></div>`).join("") || `<div class="card empty">No reports yet.</div>`}
+    <h2 style="margin-top:20px">Demo controls</h2>
+    <div class="card"><div class="label" style="margin-top:0">Grower</div><select id="grower"></select>
+      <div class="label">Replay date <span>${S.meta.date_min} to ${S.meta.date_max}</span></div><input type="date" id="clock" value="${S.meta.clock}" min="${S.meta.date_min}" max="${S.meta.date_max}" style="width:100%;font:inherit;border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff">
+      <div class="xs muted" style="margin-top:6px">Changing the date moves all three apps (farmer, advisor, dashboard).</div>
+      <button class="btn ghost" style="margin-top:14px" data-reset>Reset demo data</button></div>
+    <div class="demo-note">Real: LPIS plot shapes and areas, ERA5-Land weather, decision-table rules. Demo: names, varieties, irrigation log, seeded requests. "Forecast" is the actual following days of the 2025 replay.</div>`;
+}
+
+function renderTabs() {
+  const open = S.reqs.filter(r => r.status === "replied").length;
+  const T = [["alerts", "Alerts", "bell"], ["parcels", "Parcels", "leaf"], ["report", "Report", "plus"], ["advisor", "Advisor", "chat"], ["me", "Me", "user"]];
+  $("tabs").innerHTML = T.map(([k, l, ic]) => k === "report" ? `<button data-t="report"><span class="fab">${I.plus}</span>${l}</button>` :
+    `<button data-t="${k}" class="${S.tab === k && !S.detail ? "on" : ""}">${I[ic]}${l}${k === "advisor" && open ? `<span class="badge">${open}</span>` : ""}</button>`).join("");
+}
+function render() {
+  if (!S.farmer) return;
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("on"));
+  const v = S.detail ? "detail" : S.tab; $("v-" + v).classList.add("on");
+  ({alerts: renderAlerts, parcels: renderParcels, advisor: renderAdvisor, me: renderMe, detail: renderDetail})[v]();
+  $("composer").style.display = v === "advisor" ? "flex" : "none"; $("v-advisor").classList.toggle("nopad-bottom", true);
+  $("tabs").style.display = v === "detail" ? "none" : "flex"; renderTabs();
+}
+
+// ---- sheets ----
+const sheetOn = html => { $("sheet").innerHTML = html; $("sheet").classList.add("on"); $("sbg").classList.add("on"); S.sheet = true; };
+const sheetOff = () => { $("sheet").classList.remove("on"); $("sbg").classList.remove("on"); S.sheet = false; };
+function openAsk() {
+  const a = S.detail, adv = S.meta.advisor;
+  S.ask = {photos: K.photoPicker(6, drawAsk), message: "", urgency: "Today", share: true, a, adv};
+  drawAsk(); setTimeout(() => $("sheet").scrollTo(0, 0), 0);
+}
+function drawAsk() {
+  const s = S.ask, a = s.a, msg = s.message;
+  sheetOn(`<div class="head"><h2>Ask your advisor</h2><button class="x" data-close>${I.x}</button></div>
+    <div class="card" style="margin-top:0"><div class="who"><div class="avatar lg">${esc(s.adv.initials)}</div><div><h2 style="margin:0;font-size:20px">${esc(s.adv.name)}</h2><div class="sub2">${esc(s.adv.title)} · usually replies within ${s.adv.reply_hours} hours</div></div></div></div>
+    <div class="advice" style="margin-top:0"><div class="hl">Advice to check</div><div class="title" style="margin:6px 0 2px">${esc(a.title)}</div><div class="sub2">${esc(a.parcel_name || "All parcels")} · ${esc(a.subtitle.split(" · ").slice(0, 2).join(" · "))}</div></div>
+    <div class="label">Add pictures <span>${s.photos.list.length} of 6</span></div><div class="xs muted">Curled leaves and a photo of the drip line help most.</div>
+    ${K.photosHtml(s.photos.list, 6, "ask")}
+    <div class="label">Your message</div><textarea id="askmsg" placeholder="Describe what you see on the plot.">${esc(msg)}</textarea>
+    <div class="label">How urgent?</div><div class="seg">${["Today", "This week"].map(u => `<button data-urg="${u}" class="${s.urgency === u ? "on" : ""}">${u}</button>`).join("")}</div>
+    <div class="check ${s.share ? "on" : ""}" data-share><i>${I.check}</i><span>Share my field data (plot, irrigation log, weather it was based on)</span></div>
+    <div class="go"><button class="btn" data-sendask>${I.send}Send to ${esc(s.adv.name.split(" ")[0])}</button></div>`);
+}
+function openReport() {
+  const p0 = S.parcels[0];
+  S.rep = {photos: K.photoPicker(6, drawReport), kind: "Pest", label: "Olive fruit fly", parcel: p0.id, notes: "", vis: "nearby"};
+  drawReport();
+}
+function drawReport() {
+  const s = S.rep;
+  sheetOn(`<div class="head"><div><h2>Report a problem</h2><div class="sub2">Warn your advisor and growers nearby.</div></div><button class="x" data-close>${I.x}</button></div>
+    <div class="label" style="margin-top:6px">What did you see?</div><div class="grid2">${["Disease", "Pest", "Irrigation fault", "Weather damage"].map(k => `<button class="kind ${s.kind === k ? "on" : ""}" data-kind="${k}">${s.kind === k ? "✓ " : ""}${k}</button>`).join("")}</div>
+    ${REPORT_LABELS[s.kind] ? `<div class="label">Which one?</div><select id="replabel">${REPORT_LABELS[s.kind].map(l => `<option ${l === s.label ? "selected" : ""}>${l}</option>`).join("")}</select>` : ""}
+    <div class="label">Where?</div><select id="reploc">${S.parcels.map(p => `<option value="${p.id}" ${p.id === s.parcel ? "selected" : ""}>${esc(p.name)} · ${esc(p.variety)}</option>`).join("")}</select>
+    <div class="label">Photos <span>${s.photos.list.length} of 6</span></div>${K.photosHtml(s.photos.list, 6, "rep")}
+    <div class="label">Notes</div><textarea id="repnotes" placeholder="What did you notice, and where on the plot?">${esc(s.notes)}</textarea>
+    <div class="label">Who should know?</div>
+    <div class="opt ${s.vis === "advisor" ? "on" : ""}" data-vis="advisor"><span class="rad"></span><b>My advisor only</b></div>
+    <div class="opt ${s.vis === "nearby" ? "on" : ""}" data-vis="nearby"><span class="rad"></span><div><b>My advisor and nearby growers</b><span class="sm muted">Elena checks first. Others see a 10 km area, never your name or farm.</span></div></div>
+    <div class="go"><button class="btn" data-sendrep>${I.send}Send report</button></div>`);
+}
+
+// ---- events ----
+document.addEventListener("click", async e => {
+  const t = e.target.closest("[data-t],[data-f],[data-open],[data-back],[data-ask],[data-done],[data-goto],[data-close],[data-urg],[data-share],[data-sendask],[data-add],[data-rm],[data-kind],[data-vis],[data-sendrep],[data-reset]");
+  if (!t) return;
+  const d = t.dataset;
+  if ("t" in d) { if (d.t === "report") return openReport(); S.tab = d.t; S.detail = null; render(); }
+  else if ("f" in d) { S.filter = d.f; render(); }
+  else if ("open" in d) { S.detail = S.feed.find(a => a.id === d.open); render(); $("v-detail").scrollTo(0, 0); }
+  else if ("back" in d) { S.detail = null; render(); }
+  else if ("goto" in d) { S.tab = d.goto; S.detail = null; render(); }
+  else if ("ask" in d) openAsk();
+  else if ("done" in d) { await api(`/alerts/${encodeURIComponent(S.detail.id)}/done`, {}); toast("Marked as done."); await load(true); }
+  else if ("close" in d) sheetOff();
+  else if ("urg" in d) { S.ask.message = $("askmsg").value; S.ask.urgency = d.urg; drawAsk(); }
+  else if ("share" in d) { S.ask.message = $("askmsg").value; S.ask.share = !S.ask.share; drawAsk(); }
+  else if ("add" in d) (d.add === "ask" ? S.ask : S.rep).photos.add();
+  else if ("rm" in d) { const [w, i] = d.rm.split(":"); if (w === "ask") S.ask.message = $("askmsg").value; else S.rep.notes = $("repnotes").value; (w === "ask" ? S.ask : S.rep).photos.remove(+i); }
+  else if ("sendask" in d) {
+    const msg = $("askmsg").value.trim() || "Can you check this advice?";
+    await api("/requests", {farmer_id: S.fid, alert_id: S.ask.a.id, message: msg, urgency: S.ask.urgency, share_data: S.ask.share, photos: S.ask.photos.list});
+    sheetOff(); toast(`Sent to ${S.ask.adv.name.split(" ")[0]}. She usually replies within ${S.ask.adv.reply_hours} hours.`); await load(true);
+  }
+  else if ("kind" in d) { S.rep.notes = $("repnotes").value; S.rep.kind = d.kind; S.rep.label = (REPORT_LABELS[d.kind] || [d.kind])[0]; drawReport(); }
+  else if ("vis" in d) { S.rep.notes = $("repnotes").value; S.rep.vis = d.vis; drawReport(); }
+  else if ("sendrep" in d) {
+    await api("/reports", {farmer_id: S.fid, kind: S.rep.kind, label: S.rep.label, parcel_id: $("reploc").value, notes: $("repnotes").value.trim(), photos: S.rep.photos.list, visibility: S.rep.vis});
+    sheetOff(); toast("Report sent. Elena will check it first."); S.tab = "me"; S.detail = null; await load(true);
+  }
+  else if ("reset" in d) { await api("/reset", {}); toast("Demo data reset."); S.detail = null; await load(true); }
+});
+document.addEventListener("change", async e => {
+  if (e.target.id === "replabel") S.rep.label = e.target.value;
+  if (e.target.id === "reploc") S.rep.parcel = e.target.value;
+  if (e.target.id === "grower") { S.fid = e.target.value; localStorage.setItem("kairos_f", S.fid); S.detail = null; S.sig = ""; await load(true); }
+  if (e.target.id === "clock" && e.target.value) { await api("/clock", {date: e.target.value}); S.sig = ""; await load(true); toast("Replay date changed."); }
+});
+$("sbg").onclick = sheetOff;
+document.addEventListener("click", async e => {
+  if (!e.target.closest("#qago") || !S.detail) return;
+  const q = $("qaq").value.trim(), out = $("qaout"); if (!q) return;
+  out.innerHTML = `<div class="demo-note">Thinking…</div>`;
+  const r = await api("/assist/ask", {alert_id: S.detail.id, question: q});
+  out.innerHTML = `<div class="card"><div class="row"><span class="chip-ai">${I.spark}${r.backend === "ollama" ? "AI-drafted from the rules" : "Standard advice"}</span></div>
+    <div style="margin-top:6px">${esc(r.text)}</div>
+    <div class="sm muted" style="margin-top:6px">${r.citations.slice(0, 3).map(c => `<a href="${esc(c.source_url)}" target="_blank">${esc(c.rule_id)}</a>`).join(" · ")}</div>
+    ${r.note ? `<div class="sm muted">${esc(r.note)}</div>` : ""}</div>`;
+});
+$("chatsend").innerHTML = I.send;
+$("chatsend").onclick = async () => { const i = $("chatin"), t = i.value.trim(); if (!t) return; i.value = ""; await api(`/chat/${S.fid}`, {from: "farmer", text: t}); await load(true); };
+$("chatin").onkeydown = e => { if (e.key === "Enter") $("chatsend").click(); };
+load(true).then(() => { // deep links for screenshots / demos: ?tab=parcels | ?open=1 | ?sheet=ask|report
+  const q = new URLSearchParams(location.search);
+  if (q.get("tab")) { S.tab = q.get("tab"); render(); }
+  if (q.get("open")) { S.detail = S.feed[+q.get("open") - 1] || null; render(); }
+  if (q.get("sheet") === "ask" && S.feed.length) { S.detail = S.feed[0]; render(); openAsk(); }
+  if (q.get("sheet") === "report") openReport();
+}).catch(err => { document.body.innerHTML = `<p style="padding:30px;font-family:sans-serif">Cannot reach the Kairos API (${err.message}).<br>Start it with <code>make demo-up</code> and open this page from that server.</p>`; });
+setInterval(() => load(false).catch(() => {}), 4000);
+</script>
+</body>
+</html>

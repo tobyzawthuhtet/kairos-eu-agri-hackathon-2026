@@ -1,0 +1,16 @@
+# Kairos water-balance rules for the demo. These are NOT rows of the literature decision table:
+# thresholds are relative to each ERA5-Land cell's own 2025 distribution and need agronomist input.
+soil_drying:
+  layer: soil_moisture_l3        # ERA5-Land 28-100 cm
+  percentile: 20                 # "dry" = below this percentile of the cell's year
+  lookahead_days: 3
+  rain_free_mm: 5                # total rain in the look-ahead window below which irrigation is needed
+  active_months: [3, 4, 5, 6, 7, 8, 9, 10]
+  hot_tmax_c: 30                 # high severity when also this hot
+  confidence: low
+  source: "Kairos water-balance demo rule (not in the decision table); needs agronomist calibration"
+rain_ahead:
+  lookahead_days: 4
+  rain_mm: 15                    # at least this much rain on one day in the window
+  confidence: medium
+  source: "Kairos demo rule; daily total only, not the 12 h heavy-rain rule (>= 40 mm)"

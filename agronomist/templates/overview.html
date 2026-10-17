@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ crop|capitalize }} crop overview · Kairos{% endblock %}
+{% block body %}
+<h1>{{ crop|capitalize }}: how the rule engine behaves across the crop</h1>
+<div class="sub">Crop-level figures from 2025 weather over the crop's area in each province. Click a row in the heatmap to open that scenario and check its threshold.</div>
+{% if not weather_ok %}<div class="note">Weather series are only prepared for olive so far. Add a crop-area mask and features for {{ crop }} to see figures here.</div>{% else %}
+<div class="help"><b>How to read this:</b> the calendar shows when each crop stage is active. The heatmap shows, for every weather-testable scenario, how many province-days it would have fired in each month of 2025.
+Rows that never fire may be too strict. Rows that fire almost every month may be too sensitive. Ticks (✔) mark scenarios you already approved.</div>
+<div class="card"><h2>Crop calendar</h2><div id="fig-cal" class="fig" style="height:300px"></div></div>
+<div class="card"><h2>When would each scenario have fired? (province-days per month, 2025)</h2><div id="fig-map" class="fig" style="height:900px"></div></div>
+<div class="twofig"><div class="card"><h2>Review progress by stage</h2><div id="fig-prog" class="fig" style="height:340px"></div></div>
+<div class="card"><h2>Worth a second look</h2><div id="lists" class="sm"></div></div></div>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="{{ url_for('static', filename='overview_figs.js') }}"></script>{% endif %}
+{% endblock %}

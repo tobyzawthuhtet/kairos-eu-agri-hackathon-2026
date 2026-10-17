@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>{% block title %}Kairos scenario review{% endblock %}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f4a1f'/%3E%3Cpath d='M16 44c10 2 24-6 32-26-14 2-28 8-32 26z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#f5f4ec;--ink:#1d2517;--sub:#6c7260;--line:#e7e5d8;--green:#2f4a1f;--soft:#e5e9d3;--red:#9a3a2a;--amber:#f6e6b0;--amberink:#6e5000}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Inter,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line);padding:14px 28px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:5}
+header a.brand{font-weight:800;font-size:20px;color:var(--green);text-decoration:none;display:flex;gap:8px;align-items:center}
+header .role{font-size:11px;letter-spacing:.6px;background:var(--soft);padding:3px 8px;border-radius:8px}
+header .sp{flex:1}
+main{max-width:1100px;margin:0 auto;padding:24px 28px 80px}
+h1{font-size:28px;margin:6px 0 6px;letter-spacing:-.5px}h2{font-size:19px;margin:0 0 8px}
+.sub{color:var(--sub)}.sm{font-size:14px}.xs{font-size:12.5px}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0}
+.help{background:var(--soft);border-radius:16px;padding:14px 18px;margin:14px 0;font-size:15px}
+.help ol{margin:6px 0 0 20px;padding:0}
+.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:#e9ebd9;margin:10px 0 6px}
+.bar i{display:block}.b-approved{background:#46662f}.b-modified{background:#7f9a52}.b-rejected{background:var(--red)}.b-unsure{background:#e0b43a}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px}.legend span::before{content:"";display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.pill{display:inline-block;font-size:12.5px;font-weight:700;border-radius:999px;padding:3px 11px;white-space:nowrap}
+.p-none{background:#eceee0;color:var(--sub)}.p-approved{background:var(--green);color:#fff}.p-modified{background:#7f9a52;color:#fff}.p-rejected{background:var(--red);color:#fff}.p-unsure{background:var(--amber);color:var(--amberink)}
+.sev-High,.sev-Critical{background:var(--red);color:#fff}.sev-Medium{background:var(--amber);color:var(--amberink)}.sev-Low{background:#e8e2b0;color:#5c5200}.sev-Info{background:#e3e9d3;color:#3d5128}
+.filters{display:grid;grid-template-columns:2fr 1.3fr 1.3fr 1.3fr 1.3fr auto;gap:10px;align-items:end}
+label{font-size:13px;font-weight:700;color:var(--sub);display:block;margin-bottom:4px}
+input[type=text],select,textarea{width:100%;font:inherit;border:1px solid #d6d9c6;border-radius:12px;padding:10px 12px;background:#fff;color:var(--ink)}
+textarea{min-height:90px}
+.btn{display:inline-block;border:0;border-radius:12px;background:var(--green);color:#fff;font:inherit;font-weight:700;padding:11px 18px;cursor:pointer;text-decoration:none}
+.btn.ghost{background:#fff;color:var(--green);border:1.5px solid #cfd3bd}.btn.big{padding:15px 22px;font-size:17px}
+details.stage{background:#fff;border:1px solid var(--line);border-radius:18px;margin:12px 0;overflow:hidden}
+details.stage>summary{cursor:pointer;padding:14px 18px;font-weight:800;font-size:18px;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.stage>summary::-webkit-details-marker{display:none}
+.row{display:grid;grid-template-columns:150px 1fr auto;gap:14px;padding:14px 18px;border-top:1px solid var(--line);text-decoration:none;color:inherit;align-items:start}
+.row:hover{background:#fafbf4}.row .id{font-size:12.5px;color:var(--sub);word-break:break-all}.row .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.sentence{font-size:21px;line-height:1.35;letter-spacing:-.2px;font-weight:600}
+.facts{display:grid;grid-template-columns:170px 1fr;gap:8px 14px;font-size:15px}.facts div:nth-child(odd){color:var(--sub)}
+.decide{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0 16px}
+.decide label{margin:0;border:2px solid #d6d9c6;border-radius:14px;padding:14px;cursor:pointer;color:var(--ink);font-size:15px;background:#fff}
+.decide input{display:none}.decide label b{display:block;font-size:16px;margin-bottom:2px}
+.decide input:checked+label,.decide label:has(input:checked){border-color:var(--green);background:var(--soft)}
+.decide label.r:has(input:checked){border-color:var(--red);background:#f4dcd6}.decide label.u:has(input:checked){border-color:#d1a21f;background:var(--amber)}
+.note{background:var(--amber);color:var(--amberink);border-radius:12px;padding:10px 14px;font-size:14.5px;margin:10px 0}
+.ok{background:var(--soft);color:var(--green);border-radius:12px;padding:10px 14px;font-weight:700;margin:10px 0}
+.nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+a{color:var(--green)}
+@media(max-width:900px){.filters{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr}.decide{grid-template-columns:1fr 1fr}.facts{grid-template-columns:1fr}}
+.thr{display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:8px}.thr input[type=number]{width:110px}
+.figsum{background:var(--soft);border-radius:12px;padding:10px 14px;font-size:15.5px;margin:6px 0 10px}.figsum b{font-size:18px}
+.twofig{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fig{width:100%}
+@media(max-width:900px){.twofig{grid-template-columns:1fr}}
+</style></head><body>
+<header><a class="brand" href="{{ url_for('index') }}">🫒 Kairos <span class="role">AGRONOMIST REVIEW</span></a><nav class="sm" style="display:flex;gap:16px;align-items:center"><a href="{{ url_for('index') }}">Scenarios</a><a href="{{ url_for('overview') }}">Crop overview (figures)</a></nav>
+<span class="sp"></span>
+<select onchange="location='/crop/'+this.value" title="Crop" style="width:auto;padding:7px 12px">{% for c_ in crops %}<option value="{{ c_ }}" {% if c_ == crop %}selected{% endif %}>{{ c_|capitalize }}</option>{% endfor %}</select>
+<span class="sm sub">{{ c.approved + c.modified + c.rejected + c.unsure }} of {{ total }} scenarios reviewed</span>
+<a class="btn ghost" style="padding:8px 14px" href="{{ url_for('export') }}">Download CSV</a></header>
+<main>{% block body %}{% endblock %}</main></body></html>

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Check the olive warning scenarios</h1>
+<div class="sub">Each scenario is one rule Kairos uses to warn growers: a crop stage, a weather condition, and the advice that follows.</div>
+<div class="help"><b>What you do:</b>
+<ol><li>Open a scenario. It is written as one plain sentence.</li><li>Check the threshold, the advice and the source.</li>
+<li>Choose <b>Approve</b>, <b>Approve with changes</b> (edit the number or the advice), <b>Reject</b>, or <b>Needs a field check</b>.</li></ol>
+Your decision takes effect straight away in the farmer app, advisor app and advisor dashboard: approved scenarios show as validated, changed ones use your numbers, rejected ones stop firing.</div>
+
+<div class="card"><h2>Progress</h2>
+<div class="bar">{% for k in ['approved','modified','rejected','unsure'] %}<i class="b-{{k}}" style="width:{{ c[k] * 100 / total }}%"></i>{% endfor %}</div>
+<div class="legend"><span style="--c:#46662f">Approved {{ c.approved }}</span><span style="--c:#7f9a52">With changes {{ c.modified }}</span><span style="--c:#9a3a2a">Rejected {{ c.rejected }}</span><span style="--c:#e0b43a">Field check {{ c.unsure }}</span><span style="--c:#e9ebd9">Not reviewed {{ c.none }}</span></div>
+{% if next_id %}<p style="margin:14px 0 0"><a class="btn big" href="{{ url_for('scenario', sid=next_id) }}">Review the next scenario →</a></p>{% endif %}</div>
+
+<form class="card filters" method="get">
+<div><label>Search</label><input type="text" name="q" value="{{ f.q }}" placeholder="frost, peacock spot, irrigation…"></div>
+<div><label>Crop stage</label><select name="stage"><option value="">All stages</option>{% for k, v in stages.items() %}<option value="{{k}}" {% if f.stage==k %}selected{% endif %}>{{v}}</option>{% endfor %}</select></div>
+<div><label>Hazard</label><select name="hazard"><option value="">All hazards</option>{% for h in hazards %}<option {% if f.hazard==h %}selected{% endif %}>{{h}}</option>{% endfor %}</select></div>
+<div><label>Status</label><select name="status"><option value="">Any</option>{% for k, v in status_label.items() %}<option value="{{k}}" {% if f.status==k %}selected{% endif %}>{{v}}</option>{% endfor %}</select></div>
+<div><label>How Kairos checks it</label><select name="check"><option value="">All</option><option value="weather" {% if f.check=='weather' %}selected{% endif %}>From weather data</option><option value="other" {% if f.check=='other' %}selected{% endif %}>Needs field scouting / other data</option></select></div>
+<div><button class="btn" type="submit">Filter</button></div></form>
+<div class="sm sub" style="margin:0 4px 6px">Showing {{ shown }} of {{ total }} scenarios</div>
+
+{% for stage, rows in groups.items() %}
+<details class="stage" open><summary><span>{{ stage }}</span><span class="sm sub">{{ rows|length }} scenario{{ '' if rows|length==1 else 's' }}</span></summary>
+{% for r in rows %}<a class="row" href="{{ url_for('scenario', sid=r.scenario_id) }}">
+<div><span class="pill p-{{ r.status }}">{{ status_label[r.status] }}</span><div class="id" style="margin-top:6px">{{ r.scenario_id }}</div></div>
+<div><div style="font-weight:600">{{ r.sentence }}</div><div class="tags"><span class="pill sev-{{ r.sev }}">{{ r.sev }} severity</span><span class="pill p-none">evidence: {{ r.conf }}</span>
+{% if not r.checked_by_weather %}<span class="pill p-none">needs field data</span>{% endif %}{% if r.threshold in ('', 'NAV') %}<span class="pill p-unsure">no number in the sources</span>{% endif %}</div></div>
+<div class="sm sub">›</div></a>{% endfor %}</details>
+{% else %}<div class="card sub">No scenarios match those filters.</div>{% endfor %}
+{% endblock %}

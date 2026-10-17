@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ r.scenario_id }} · Kairos scenario review{% endblock %}
+{% block body %}
+<div class="nav"><a href="{{ url_for('index') }}">← All scenarios</a><span class="sm sub">Scenario {{ pos }} of {{ n }}
+{% if prev_id %}· <a href="{{ url_for('scenario', sid=prev_id) }}">previous</a>{% endif %}{% if next_id %} · <a href="{{ url_for('scenario', sid=next_id) }}">next</a>{% endif %}</span></div>
+{% if saved %}<div class="ok">Saved your decision for {{ saved }}.</div>{% endif %}
+<div class="sm sub">{{ r.stage_name }} · {{ r.hazard.replace('_', ' ') }} · {{ r.scenario_id }}</div>
+<h1 class="sentence" style="margin:8px 0 14px">{{ r.sentence }}</h1>
+<div style="margin-bottom:10px"><span class="pill p-{{ r.status }}">{{ status_label[r.status] }}</span> <span class="pill sev-{{ r.sev }}">{{ r.sev }} severity</span> <span class="pill p-none">evidence: {{ r.conf }}</span></div>
+
+<div class="card"><h2>What Kairos tells the grower</h2>
+<p style="font-size:17px;margin:4px 0">{{ r.action }}</p>
+<div class="sm sub">{% if r.action_lead_time_h %}Suggested to act within {{ r.action_lead_time_h }} hours.{% else %}No lead time in the sources.{% endif %}</div></div>
+
+<div class="card"><h2>The rule in detail</h2><div class="facts">
+<div>Condition</div><div>{{ r.variable }} {{ r.operator }} <b>{{ r.threshold or '–' }}</b> {{ r.unit_nice }}{% if r.aggregation %} <span class="sub">({{ r.aggregation }})</span>{% endif %}</div>
+<div>How long</div><div>{{ r.duration_nice }}</div>
+<div>Where it applies</div><div>{{ r.regions_nice }}</div>
+<div>Source</div><div>{% if src %}<a href="{{ src }}" target="_blank" rel="noopener">Open the source</a>{% else %}{{ r.source_url or 'No source recorded' }}{% endif %}</div>
+<div>What the source says</div><div class="sm">{{ r.window_notes or '–' }}</div></div>
+{% if r.threshold in ('', 'NAV') %}<div class="note">The sources give no number for this scenario yet. If you know a sound one, choose “Approve with changes” and enter it.</div>{% endif %}
+{% if r.duration in ('', 'NAV') or 'NAV' in r.duration %}<div class="note">The duration is not given in the sources. You can add it below.</div>{% endif %}</div>
+
+<div class="card"><h2>How Kairos checks it</h2>
+{% if r.checked_by_weather %}<p class="sm" style="margin:4px 0">Kairos can test this scenario from weather data (ERA5-Land).
+{% if r.fired %}In 2025 it would have fired on <b>{{ r.fired.days }}</b> province-days across <b>{{ r.fired.provinces }}</b> of 22 provinces.{% else %}In 2025 it would not have fired in any province.{% endif %}
+This helps you judge whether the threshold is too sensitive or too strict.</p>
+{% else %}<p class="sm" style="margin:4px 0">Kairos cannot test this from weather data alone: <b>{{ r.why_not_checked }}</b>.
+It stays visible to advisors as a scouting reminder.</p>{% endif %}</div>
+
+{% if r.checked_by_weather and weather_ok %}
+<div class="card" id="figs" data-sid="{{ r.scenario_id }}" data-lit="{{ r.threshold }}" data-op="{{ r.operator }}">
+<h2>Test the threshold on 2025 weather</h2>
+<p class="sm sub" style="margin:2px 0 10px">Each grey line is one province's {{ crop }}-area weather. Red dots are the days the scenario would warn. Move the threshold and watch how often it fires. This is the whole crop area, not single farm plots.</p>
+<div class="thr"><div><label id="thrlabel">Threshold</label><div style="display:flex;gap:8px"><input type="number" step="any" id="thr1"><input type="number" step="any" id="thr2" style="display:none"></div></div>
+<div style="flex:1"><label>Drag to change</label><input type="range" id="thrrange" style="width:100%"></div>
+<div style="display:flex;gap:8px;align-items:end"><button type="button" class="btn ghost" id="thrreset">Reset to source value</button><button type="button" class="btn" id="thruse">Use in my decision</button></div></div>
+<div id="figsum" class="figsum"></div>
+<div id="fig-season" class="fig" style="height:380px"></div>
+<div class="twofig"><div id="fig-sens" class="fig" style="height:420px"></div><div id="fig-heat" class="fig" style="height:420px"></div></div>
+<p class="xs sub" id="figfoot"></p></div>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script src="{{ url_for('static', filename='scenario_figs.js') }}"></script>
+{% endif %}
+
+<form class="card" method="post"><h2>Your decision</h2>
+<div class="decide">
+<div><input type="radio" id="d1" name="decision" value="approved" {% if r.status in ('none','approved') %}checked{% endif %}><label for="d1"><b>✔ Approve</b>Correct as written.</label></div>
+<div><input type="radio" id="d2" name="decision" value="modified" {% if r.status=='modified' %}checked{% endif %}><label for="d2"><b>✎ Approve with changes</b>Fix the number or advice below.</label></div>
+<div><input type="radio" id="d3" name="decision" value="rejected" {% if r.status=='rejected' %}checked{% endif %}><label class="r" for="d3"><b>✖ Reject</b>Wrong or not useful. Stop it firing.</label></div>
+<div><input type="radio" id="d4" name="decision" value="unsure" {% if r.status=='unsure' %}checked{% endif %}><label class="u" for="d4"><b>? Needs a field check</b>Not sure yet.</label></div></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+<div><label>Threshold ({{ r.operator }}{{ ' ' + r.unit if r.unit and r.unit != 'NAV' else '' }})</label><input type="text" id="threshold" name="threshold" value="{{ r.review.threshold if r.review and r.review.threshold else r.threshold }}"></div>
+<div><label>Duration or timing (optional)</label><input type="text" name="duration" value="{{ r.review.duration if r.review and r.review.duration else '' }}" placeholder="e.g. 2 nights in a row"></div></div>
+<label style="margin-top:12px">Advice to the grower</label><textarea name="action">{{ r.review.action if r.review and r.review.action else r.action }}</textarea>
+<label style="margin-top:12px">Comment (why, local experience, reference)</label><textarea name="comment" placeholder="Optional but helpful for the next reviewer">{{ r.review.comment if r.review else '' }}</textarea>
+<div style="display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:end;margin-top:14px">
+<div><label>Your name</label><input type="text" name="reviewer" value="{{ reviewer }}" placeholder="Agronomist name" required></div>
+<button class="btn" type="submit">Save</button><button class="btn big" type="submit" name="go_next" value="1">Save and review next →</button></div>
+{% if r.review %}<p class="xs sub" style="margin-top:12px">Last review: {{ r.review.reviewer }} · {{ r.review.at }}{% if r.review.history %} · {{ r.review.history|length }} earlier version(s){% endif %}</p>{% endif %}</form>
+{% endblock %}
