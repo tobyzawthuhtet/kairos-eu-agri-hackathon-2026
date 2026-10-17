@@ -1,0 +1,23 @@
+# INE province code -> name, region id (matches configs/regions.yaml) and decision-table region code
+"04": {name: Almería, region: andalucia, es: ES-AN}
+"11": {name: Cádiz, region: andalucia, es: ES-AN}
+"14": {name: Córdoba, region: andalucia, es: ES-AN}
+"18": {name: Granada, region: andalucia, es: ES-AN}
+"21": {name: Huelva, region: andalucia, es: ES-AN}
+"23": {name: Jaén, region: andalucia, es: ES-AN}
+"29": {name: Málaga, region: andalucia, es: ES-AN}
+"41": {name: Sevilla, region: andalucia, es: ES-AN}
+"02": {name: Albacete, region: castilla_la_mancha, es: ES-CM}
+"13": {name: Ciudad Real, region: castilla_la_mancha, es: ES-CM}
+"16": {name: Cuenca, region: castilla_la_mancha, es: ES-CM}
+"19": {name: Guadalajara, region: castilla_la_mancha, es: ES-CM}
+"45": {name: Toledo, region: castilla_la_mancha, es: ES-CM}
+"06": {name: Badajoz, region: extremadura, es: ES-EX}
+"10": {name: Cáceres, region: extremadura, es: ES-EX}
+"08": {name: Barcelona, region: cataluna, es: ES-CT}
+"17": {name: Girona, region: cataluna, es: ES-CT}
+"25": {name: Lleida, region: cataluna, es: ES-CT}
+"43": {name: Tarragona, region: cataluna, es: ES-CT}
+"03": {name: Alicante, region: comunitat_valenciana, es: ES-VC}
+"12": {name: Castellón, region: comunitat_valenciana, es: ES-VC}
+"46": {name: Valencia, region: comunitat_valenciana, es: ES-VC}

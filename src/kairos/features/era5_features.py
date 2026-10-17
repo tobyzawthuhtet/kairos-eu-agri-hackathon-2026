@@ -69,10 +69,11 @@ def daily_cell_features(ds: xr.Dataset, gust: xr.Dataset | None = None, pev: xr.
     res = xr.Dataset(out).rename({t: "date"})
     if pev is not None:
         pt = _tname(pev)
-        res["pev_mm"] = (-_deaccumulate(pev["pev"], pt) * 1000.0).resample({pt: "1D"}).sum().rename({pt: "date"})
+        res["pev_mm"] = (_deaccumulate(-pev["pev"], pt) * 1000.0).resample({pt: "1D"}).sum().rename({pt: "date"})  # pev is negative (upward flux)
     if gust is not None:
         gt = _tname(gust)
         g = gust[next(v for v in gust.data_vars if "gust" in v.lower() or v == "i10fg")]
+        g = g.reindex(latitude=ds["latitude"], longitude=ds["longitude"], method="nearest")  # 0.25 deg -> land 0.1 deg grid
         res["gust_max_ms"] = g.resample({gt: "1D"}).max().rename({gt: "date"})
     return res
 

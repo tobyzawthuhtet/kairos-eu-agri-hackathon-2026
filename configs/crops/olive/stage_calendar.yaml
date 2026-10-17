@@ -1,0 +1,12 @@
+# Approximate Andalusian olive calendar (MM-DD ranges, wrap-around allowed, overlaps allowed).
+# Assumption: calendar-based, not GDD-based. RAIF stage reports are shown beside it for comparison.
+stages:
+  dormancy_chilling: ["11-15", "02-15"]
+  budbreak_shoot_growth: ["02-15", "03-31"]
+  inflorescence_development: ["03-15", "04-30"]
+  flowering_anthesis: ["04-25", "06-10"]
+  fruit_set: ["05-15", "06-30"]
+  pit_hardening: ["06-15", "07-31"]
+  fruit_growth_oil_accumulation: ["07-15", "10-31"]
+  ripening_harvest: ["10-01", "12-31"]
+  post_harvest_recovery: ["11-15", "02-15"]

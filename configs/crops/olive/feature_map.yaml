@@ -1,0 +1,25 @@
+# Maps decision-table `variable` (regex, first match wins) to a daily feature column from
+# data/processed/features. Daily features are olive-area weighted ERA5-Land province means, so
+# hourly / sub-daily thresholds are evaluated on the daily extreme. Anything not listed here, or
+# listed under `skip`, is reported as "not evaluable" with the reason; it is never silently dropped.
+map:
+  - {match: "^(Tmin_2m|air_temperature_min)", feature: tmin_c, note: "daily minimum used for an hourly threshold; ERA5-Land 9 km smooths cold pockets"}
+  - {match: "^(tmax_2m$|Tmax_hourly|tmax_forecast_zone|air_temperature_max)", feature: tmax_c, note: "daily maximum"}
+  - {match: "^(precip_12h|precipitation_accumulated_12h)", feature: precip_max_12h_mm, note: "wettest 12 h of the day"}
+  - {match: "^(gust_10m|wind_gust_max)", feature: gust_max_ms, scale: 3.6, note: "m/s converted to km/h; gust from the coarser 0.25 deg grid"}
+  - match: "^leaf_wetness$"
+    feature: wet_hours_8_24c
+    when: [{feature: tmean_c, op: between, value: [10, 20]}]
+    note: "proxy hours (RH>=90% or rain, 8-24 C); temperature band approximated by daily mean"
+  - {match: "^soil_temp_0_20cm", feature: soil_temp_l1_c, note: "ERA5-Land layer 1 (0-7 cm)"}
+  - match: "^tmax_2m\\+rh_2m"
+    feature: tmax_c
+    when: [{feature: rh_min_pct, op: "<", value: 30}]
+    note: "needs minimum RH below 30 %"
+skip:
+  - {match: "^(chill_units_model1_cum)", reason: "chill-unit model (De Melo-Abreu) not implemented"}
+  - {match: "^chill_hours_below_7C_cum", reason: "cumulative from 1 Oct; 2025 ERA5 starts 1 Jan"}
+  - {match: "^GDD_base_9.1C_since_dormancy_release", reason: "needs dormancy-release date; shown as bloom-timing estimate instead"}
+  - {match: "^(Tair_hourly|precipitation_accumulated_1h|air_temperature \\(dusk)", reason: "needs hourly series; only daily features are stored"}
+  - {match: "^(air_temperature \\(with|air_temperature \\(fruit|air_temperature_? ?\\(with|air_temperature \\+)", reason: "wetness duration not quantified in the source"}
+  - {match: "^(degree_days|days_since_pruning|Tmin_night)", reason: "base temperature, event or greenhouse context missing"}

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class Severity(str, Enum):
+    info = "info"
     low = "low"
     moderate = "moderate"
     high = "high"

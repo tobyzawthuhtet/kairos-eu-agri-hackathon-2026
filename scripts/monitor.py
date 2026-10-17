@@ -94,8 +94,7 @@ def status() -> dict:
     # ERA5
     try:
         import download_era5 as e
-        jobs = list(e.jobs_for("olive", set(), e.span(os.environ.get("KAIROS_ERA5_YEARS", "2022-2025")), e.span("1-12")))
-        jobs += list(e.jobs_for("olive", set(), [2021], e.span("10-12")))  # chilling window for campaign 2022
+        jobs = list(e.jobs_for("olive", set(), e.span(os.environ.get("KAIROS_ERA5_YEARS", "2025")), e.span("1-12")))
     except Exception as ex:  # noqa: BLE001
         jobs, out["era5_error"] = [], str(ex)
     expected: dict = {}
@@ -154,7 +153,7 @@ async function tick(){
  let h=card('LPIS · SIGPAC recintos 2026 (FEGA)',l,`<span>in progress: <b>${l.partial}</b></span>`);
  h=h.replace('</div></div>','</div>'+`<table><tr><th>Region</th><th class="num">Files</th><th class="num">Size</th></tr>`+
   l.regions.map(r=>`<tr><td>${r.region}</td><td class="num">${f(r.files)}</td><td class="num">${gb(r.bytes)}</td></tr>`).join('')+'</table></div>');
- let eh=card('ERA5 / ERA5-Land · hourly, Oct 2021 – 2025',e,`<span>CDS jobs in flight: <b>${e.inflight}</b></span>`);
+ let eh=card('ERA5 / ERA5-Land · hourly, 2025',e,`<span>CDS jobs in flight: <b>${e.inflight}</b></span>`);
  eh=eh.replace('</div></div>','</div>'+`<table><tr><th>Dataset</th><th>Region</th><th class="mini"></th><th class="num">Done</th><th class="num">Size</th></tr>`+
   e.rows.map(r=>`<tr><td>${r.dataset.replace('reanalysis-','')}</td><td>${r.region}</td><td class="mini">${bar(r.done,r.expected)}</td><td class="num">${r.done}/${r.expected}</td><td class="num">${gb(r.bytes)}</td></tr>`).join('')+'</table></div>');
  const g=`<div class="card"><h2>Ground truth</h2><table>`+s.ground_truth.map(x=>`<tr><td>${x.name}</td><td class="num">${x.files} files</td></tr>`).join('')+`</table></div>`;

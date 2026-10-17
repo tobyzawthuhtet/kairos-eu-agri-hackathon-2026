@@ -10,3 +10,9 @@ api:
 	uv run uvicorn kairos.api.main:app --reload
 web:
 	cd web && npm run dev
+
+backtest:
+	uv run python scripts/backtest_raif.py
+
+demo:
+	uv run python scripts/build_demo_html.py
