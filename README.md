@@ -1,6 +1,6 @@
 # Kairos — Farm-level extreme-weather alerts and advisories
 
-EU Agri Hackathon 2026 · Team 20 · *Compost Compilers*
+EU Agri Hackathon 2026 · Team 20 · * Kairos*
 
 Kairos tells a grower, in plain words, **which of their plots is at risk from extreme weather, why, and what to do about it**. An agronomist stays in the loop: every alert can be validated, edited or held off before the grower acts on it.
 
